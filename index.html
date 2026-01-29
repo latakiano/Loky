@@ -5,32 +5,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>LOKY - تحدي الكأس</title>
     <style>
-        /* الجزء الخاص بالتصميم - يظهر عادة بلون مختلف */
-        body { margin: 0; overflow: hidden; background: #1a1a1a; font-family: Arial, sans-serif; }
-        #ui { position: absolute; top: 10px; width: 100%; text-align: center; color: #fff; pointer-events: none; z-index: 10; }
-        .coin-info { color: #f1c40f; font-size: 18px; font-weight: bold; }
-        .level-info { color: #00f2fe; font-size: 20px; }
-        .score-info { font-size: 45px; font-weight: bold; text-shadow: 2px 2px 5px #000; }
+        /* الجزء الخاص بالتصميم */
+        body { margin: 0; padding: 0; overflow: hidden; background: #1a1a1a; font-family: sans-serif; }
+        #game-ui { position: absolute; top: 10px; width: 100%; text-align: center; color: white; pointer-events: none; z-index: 100; }
+        .lvl { color: #00f2fe; font-size: 18px; }
+        .scr { font-size: 45px; font-weight: bold; text-shadow: 2px 2px 4px #000; }
+        .coins { color: #f1c40f; font-size: 20px; }
     </style>
 </head>
 <body>
 
-    <div id="ui">
-        <div class="level-info" id="levelDisplay">المرحلة: 1</div>
-        <div class="score-info" id="scoreBoard">0</div>
-        <div class="coin-info">🪙 العملات: <span id="coinCount">0</span></div>
+    <div id="game-ui">
+        <div class="lvl" id="levelTxt">المرحلة: 1</div>
+        <div class="scr" id="scoreTxt">0</div>
+        <div class="coins">🪙 <span id="coinTxt">0</span></div>
     </div>
 
     <canvas id="gameCanvas"></canvas>
 
 <script>
-    // الجزء البرمجي - يجب أن يظهر بألوان متعددة في المحرر المحترف
+    // بداية الجزء البرمجي - تأكد من نسخ كل ما يلي بدقة
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
-    const scoreDisplay = document.getElementById('scoreBoard');
-    const levelDisplay = document.getElementById('levelDisplay');
-    const coinDisplay = document.getElementById('coinCount');
-
+    
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 
@@ -40,87 +37,93 @@
     let score = 0;
     let totalCoins = 0;
     let level = 1;
-    let gameSpeed = 4;
-    let running = true;
-    let won = false;
+    let speed = 4;
+    let isRunning = true;
+    let isWon = false;
 
-    // ألوان الحواجز لكل مرحلة
-    const levelColors = ["#2ecc71", "#3498db", "#9b59b6", "#f1c40f", "#e67e22", "#e74c3c", "#1abc9c", "#fd79a8"];
+    // ألوان تتغير مع كل مرحلة
+    const colors = ["#2ecc71", "#3498db", "#9b59b6", "#f1c40f", "#e67e22", "#e74c3c", "#1abc9c", "#ff7979"];
 
     function createPipe() {
-        let gap = Math.max(150, 220 - (level * 3)); 
+        let gap = Math.max(160, 220 - (level * 3)); 
         let top = Math.random() * (canvas.height - gap - 120) + 60;
-        let pX = canvas.width;
-        pipes.push({ x: pX, top: top, gap: gap, passed: false });
+        pipes.push({ x: canvas.width, top: top, gap: gap, passed: false });
         
-        if (Math.random() > 0.4) {
-            coins.push({ x: pX + 25, y: top + gap/2, r: 10, collected: false });
+        // فرصة 50% لظهور عملة ذهبية
+        if (Math.random() > 0.5) {
+            coins.push({ x: canvas.width + 25, y: top + gap/2, r: 10, collected: false });
         }
     }
 
     function drawHuman(x, y) {
         ctx.fillStyle = "#FFDBAC"; ctx.fillRect(x + 5, y, 20, 20); // الرأس
         ctx.fillStyle = "#3498db"; ctx.fillRect(x, y + 20, 30, 25); // الجسم
-        ctx.fillStyle = "#2c3e50"; ctx.fillRect(x, y + 40, 30, 5);  // أطراف البنطال
     }
 
     function update() {
-        if (!running || won) return;
+        if (!isRunning || isWon) return;
 
         bird.v += bird.g;
         bird.y += bird.v;
 
-        if (bird.y + bird.h > canvas.height || bird.y < 0) running = false;
+        if (bird.y + bird.h > canvas.height || bird.y < 0) isRunning = false;
 
         if (pipes.length === 0 || pipes[pipes.length - 1].x < canvas.width - 300) createPipe();
 
         pipes.forEach((p, i) => {
-            p.x -= gameSpeed;
-            if (bird.x < p.x + 60 && bird.x + bird.w > p.x && (bird.y < p.top || bird.y + bird.h > p.top + p.gap)) running = false;
+            p.x -= speed;
+            // فحص الاصطدام
+            if (bird.x < p.x + 60 && bird.x + bird.w > p.x && (bird.y < p.top || bird.y + bird.h > p.top + p.gap)) isRunning = false;
             
             if (!p.passed && p.x < bird.x) {
                 score++;
-                scoreDisplay.innerText = score;
+                document.getElementById('scoreTxt').innerText = score;
                 p.passed = true;
                 if (score % 5 === 0 && level < 20) {
                     level++;
-                    levelDisplay.innerText = "المرحلة: " + level;
-                    gameSpeed += 0.4;
-                } else if (score >= 100) {
-                    won = true;
-                }
+                    document.getElementById('levelTxt').innerText = "المرحلة: " + level;
+                    speed += 0.4;
+                } else if (score >= 100) { isWon = true; }
             }
             if (p.x + 60 < 0) pipes.splice(i, 1);
         });
 
         coins.forEach((c, i) => {
-            c.x -= gameSpeed;
+            c.x -= speed;
             let dx = (bird.x + bird.w/2) - c.x;
             let dy = (bird.y + bird.h/2) - c.y;
             if (!c.collected && Math.sqrt(dx*dx + dy*dy) < 30) {
                 c.collected = true;
                 totalCoins++;
-                coinDisplay.innerText = totalCoins;
+                document.getElementById('coinTxt').innerText = totalCoins;
             }
             if (c.x + 20 < 0) coins.splice(i, 1);
         });
     }
 
     function draw() {
-        ctx.fillStyle = (level >= 20) ? '#4d0a0a' : '#1a1a1a';
+        // خلفية بركانية للمرحلة 20
+        ctx.fillStyle = (level >= 20) ? '#4a0000' : '#1a1a1a';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        if (won) {
-            ctx.fillStyle = "rgba(0,0,0,0.85)";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = "#f1c40f"; ctx.font = "bold 60px Arial"; ctx.textAlign = "center";
-            ctx.fillText("🏆", canvas.width/2, canvas.height/2 - 40);
-            ctx.font = "25px Arial"; ctx.fillText("مبروك! ختمت الـ 20 مرحلة", canvas.width/2, canvas.height/2 + 20);
-            ctx.fillText("جمعت " + totalCoins + " عملة", canvas.width/2, canvas.height/2 + 60);
+        if (isWon) {
+            ctx.fillStyle = "rgba(0,0,0,0.8)"; ctx.fillRect(0,0,canvas.width,canvas.height);
+            ctx.fillStyle = "#f1c40f"; ctx.font = "50px Arial"; ctx.textAlign = "center";
+            ctx.fillText("🏆 مبروك!", canvas.width/2, canvas.height/2);
+            ctx.font = "20px Arial"; ctx.fillText("استلمت الكأس النهائي!", canvas.width/2, canvas.height/2 + 50);
             return;
         }
 
         coins.forEach(c => {
             if (!c.collected) {
                 ctx.fillStyle = "#f1c40f"; ctx.beginPath();
-                ctx.arc(c.x, c.y, c.r, 0, Math.PI*2); ctx.
+                ctx.arc(c.x, c.y, c.r, 0, Math.PI*2); ctx.fill();
+            }
+        });
+
+        drawHuman(bird.x, bird.y);
+
+        ctx.fillStyle = colors[level % colors.length];
+        pipes.forEach(p => {
+            ctx.fillRect(p.x, 0, 60, p.top);
+            ctx.
