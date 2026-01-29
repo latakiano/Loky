@@ -3,23 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>مغامرة القطة هيمالايا 🐾</title>
+    <title>مغامرة القطة هيمالايا</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #87CEEB; font-family: 'Arial', sans-serif; }
-        #ui { position: absolute; top: 10px; width: 100%; text-align: center; color: #fff; z-index: 10; pointer-events: none; }
-        .hero-msg { background: rgba(0,0,0,0.3); padding: 5px; border-radius: 10px; color: #f1c40f; font-weight: bold; }
-        .stats { font-size: 24px; text-shadow: 2px 2px 4px #000; }
+        body { margin: 0; overflow: hidden; background: #87CEEB; font-family: sans-serif; }
+        #ui { position: absolute; top: 10px; width: 100%; text-align: center; color: #fff; z-index: 20; pointer-events: none; }
+        .msg { color: #f1c40f; font-weight: bold; font-size: 20px; text-shadow: 2px 2px 5px #000; }
     </style>
 </head>
 <body>
 
 <div id="ui">
-    <div class="hero-msg">هيا يا بطل.. القطة هيمالايا تنتظر الكأس! 🏆</div>
-    <div class="stats">
-        المرحلة: <span id="lvl">1</span> | 
-        النقاط: <span id="scr">0</span> | 
-        💰: <span id="cns">0</span>
-    </div>
+    <div class="msg">هيا يا بطل.. اقطف الكنوز واحذر الألغام! 🏆</div>
+    <div style="font-size: 30px;">المرحلة: <span id="lvl">1</span> | النقاط: <span id="scr">0</span></div>
+    <div style="color: #FFD700;">💰 الكنوز: <span id="cns">0</span></div>
 </div>
 
 <audio id="music" loop>
@@ -36,91 +32,61 @@
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 
-    let cat = { x: 50, y: canvas.height/2, w: 50, h: 50, v: 0, g: 0.5, j: -8 };
-    let pipes = [], coins = [], score = 0, totalCoins = 0, level = 1, speed = 4, active = true, win = false;
+    // تحميل صورة القطة هيمالايا
+    const catImg = new Image();
+    catImg.src = 'https://i.imgur.com/WBy6v9S.png'; // رابط صورة قطة هيمالايا شفافة
 
-    // رسم القطة هيمالايا (تمثيل برمجى جميل)
-    function drawCat(x, y) {
-        ctx.save();
-        // ظل القطة لتبدو 3D
-        ctx.fillStyle = "rgba(0,0,0,0.2)";
-        ctx.beginPath(); ctx.ellipse(x+25, y+55, 20, 5, 0, 0, Math.PI*2); ctx.fill();
+    let cat = { x: 50, y: canvas.height/2, w: 60, h: 60, v: 0, g: 0.5, j: -8 };
+    let pipes = [], coins = [], score = 0, totalCoins = 0, level = 1, speed = 4, active = true, win = false, mStarted = false;
 
-        // جسم القطة (أبيض كريمي)
-        ctx.fillStyle = "#F5F5DC";
-        ctx.beginPath(); ctx.roundRect(x, y, 50, 40, 15); ctx.fill();
-        
-        // الأذنين والوجه (بني غامق - ميزة الهيمالايا)
-        ctx.fillStyle = "#4B3621";
-        ctx.beginPath(); ctx.moveTo(x+5, y); ctx.lineTo(x+15, y-10); ctx.lineTo(x+20, y); ctx.fill();
-        ctx.beginPath(); ctx.moveTo(x+30, y); ctx.lineTo(x+35, y-10); ctx.lineTo(x+45, y); ctx.fill();
-        ctx.fillRect(x+15, y+10, 20, 15); // قناع الوجه
-
-        // العيون الزرقاء الجذابة
-        ctx.fillStyle = "#00BFFF";
-        ctx.beginPath(); ctx.arc(x+20, y+15, 3, 0, Math.PI*2); ctx.fill();
-        ctx.beginPath(); ctx.arc(x+30, y+15, 3, 0, Math.PI*2); ctx.fill();
-        ctx.restore();
-    }
+    const colors = ["#FF5733", "#33FF57", "#3357FF", "#F333FF", "#FF33A1", "#33FFF6"];
 
     function createPipe() {
-        let gap = 180 - (level * 2);
+        let gap = Math.max(150, 200 - (level * 2));
         let top = Math.random() * (canvas.height - gap - 100) + 50;
-        let color = `hsl(${Math.random() * 360}, 70%, 50%)`;
-        pipes.push({ x: canvas.width, t: top, g: gap, p: false, c: color });
-        if (Math.random() > 0.4) coins.push({ x: canvas.width + 25, y: top + gap/2, collected: false });
+        pipes.push({ x: canvas.width, t: top, g: gap, p: false, c: colors[level % colors.length] });
+        if (Math.random() > 0.4) coins.push({ x: canvas.width + 25, y: top + gap/2, r: 15, collected: false });
     }
 
-    function loop() {
-        // خلفية سماوية مع سحب بسيطة
-        ctx.fillStyle = "#87CEEB"; ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
+    function draw() {
+        ctx.fillStyle = (level >= 20) ? "#400" : "#87CEEB"; 
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
         if (win) {
-            ctx.fillStyle = "rgba(255,215,0,0.9)"; ctx.fillRect(0,0,canvas.width,canvas.height);
-            ctx.fillStyle = "#000"; ctx.font = "bold 30px Arial"; ctx.textAlign="center";
-            ctx.fillText("🥇 مبروك يا بطل! استلمت الكأس", canvas.width/2, canvas.height/2);
+            ctx.fillStyle = "rgba(0,0,0,0.8)"; ctx.fillRect(0,0,canvas.width,canvas.height);
+            ctx.fillStyle = "#f1c40f"; ctx.font = "bold 35px Arial"; ctx.textAlign="center";
+            ctx.fillText("🏆 أنت بطل حقيقي! نلت الكأس", canvas.width/2, canvas.height/2);
             return;
         }
 
-        drawCat(cat.x, cat.y);
+        // رسم القطة (الصورة)
+        ctx.drawImage(catImg, cat.x, cat.y, cat.w, cat.h);
 
+        // رسم الحواجز (الألغام)
         pipes.forEach((p, i) => {
             p.x -= speed;
             ctx.fillStyle = p.c;
             ctx.fillRect(p.x, 0, 60, p.t);
             ctx.fillRect(p.x, p.t + p.g, 60, canvas.height);
 
-            if (cat.x < p.x + 60 && cat.x + 40 > p.x && (cat.y < p.t || cat.y + 35 > p.t + p.g)) active = false;
+            if (cat.x < p.x + 60 && cat.x + cat.w > p.x && (cat.y < p.t || cat.y + cat.h > p.t + p.g)) active = false;
             if (!p.p && p.x < cat.x) {
                 score++; p.p = true; document.getElementById('scr').innerText = score;
                 if (score % 5 === 0) { level++; speed += 0.5; document.getElementById('lvl').innerText = level; }
                 if (level >= 20) win = true;
             }
+            if (p.x + 60 < 0) pipes.splice(i, 1);
         });
 
+        // رسم الكنوز
         coins.forEach((c, i) => {
             c.x -= speed;
             if (!c.collected) {
-                ctx.fillStyle = "#FFD700"; ctx.beginPath(); ctx.arc(c.x, c.y, 12, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = "#FFD700"; ctx.beginPath(); ctx.arc(c.x, c.y, c.r, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = "#000"; ctx.fillText("⭐", c.x-5, c.y+5);
                 if (Math.abs(cat.x - c.x) < 40 && Math.abs(cat.y - c.y) < 40) { c.collected = true; totalCoins++; document.getElementById('cns').innerText = totalCoins; }
             }
+            if (c.x + 20 < 0) coins.splice(i, 1);
         });
 
-        if (active) {
-            cat.v += cat.g; cat.y += cat.v;
-            if (cat.y > canvas.height || cat.y < 0) active = false;
-            if (pipes.length === 0 || pipes[pipes.length-1].x < canvas.width - 280) createPipe();
-            requestAnimationFrame(loop);
-        } else {
-            ctx.fillStyle = "rgba(0,0,0,0.5)"; ctx.fillRect(0,0,canvas.width,canvas.height);
-            ctx.fillStyle = "#fff"; ctx.font = "25px Arial"; ctx.textAlign="center";
-            ctx.fillText("حاول مجدداً يا بطل القطة هيمالايا تثق بك!", canvas.width/2, canvas.height/2);
-        }
-    }
-
-    function start(e) {
-        if (e) e.preventDefault();
-        music.play();
-        if (!active || win) { 
-            cat.y = canvas.height/2; cat.v = 0; pipes = []; coins = []; score = 0; level = 1; speed = 4; active = true; win = false; loop(); 
-        } else { cat.v = cat
+        if (active)
