@@ -3,81 +3,94 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>LOKY GAME</title>
+    <title>LOKY GAME - تحدي الإنسان الطائر</title>
     <style>
-        body { margin: 0; padding: 0; overflow: hidden; background: #000; font-family: Arial, sans-serif; }
+        body { margin: 0; padding: 0; overflow: hidden; background: #1a1a1a; font-family: 'Arial', sans-serif; }
         canvas { display: block; }
-        #score { position: absolute; top: 20px; width: 100%; text-align: center; color: #00f2fe; font-size: 40px; font-weight: bold; text-shadow: 2px 2px 10px #000; pointer-events: none; }
+        #ui {
+            position: absolute; top: 20px; width: 100%; text-align: center;
+            color: #fff; font-size: 40px; font-weight: bold; pointer-events: none;
+            text-shadow: 3px 3px 5px #000;
+        }
+        #instructions {
+            position: absolute; bottom: 20px; width: 100%; text-align: center;
+            color: #aaa; font-size: 16px; pointer-events: none;
+        }
     </style>
 </head>
 <body>
-    <div id="score">0</div>
-    <canvas id="game"></canvas>
 
-    <script>
-        const canvas = document.getElementById('game');
-        const ctx = canvas.getContext('2d');
-        const scoreEl = document.getElementById('score');
+<div id="ui">0</div>
+<div id="instructions">المس الشاشة للطيران وتجنب الأعمدة</div>
+<canvas id="gameCanvas"></canvas>
 
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const scoreEl = document.getElementById('ui');
 
-        let bird = { x: 50, y: canvas.height/2, size: 25, velocity: 0, gravity: 0.6, jump: -10 };
-        let pipes = [];
-        let score = 0;
-        let active = true;
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
 
-        function createPipe() {
-            let gap = 180;
-            let top = Math.random() * (canvas.height - gap - 100) + 50;
-            pipes.push({ x: canvas.width, top: top, gap: gap, passed: false });
-        }
+let score = 0;
+let gameActive = true;
+let pipes = [];
+const pipeWidth = 70;
+const pipeGap = 190;
 
-        function loop() {
-            if (!active) return;
-            
-            ctx.fillStyle = '#111';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+// كائن اللاعب (الإنسان)
+const player = {
+    x: 50,
+    y: canvas.height / 2,
+    width: 40,
+    height: 45,
+    velocity: 0,
+    gravity: 0.6,
+    jump: -9,
+    angle: 0
+};
 
-            bird.velocity += bird.gravity;
-            bird.y += bird.velocity;
+function drawHuman(x, y) {
+    ctx.save();
+    ctx.translate(x + player.width/2, y + player.height/2);
+    // تدوير الشخصية قليلاً بناءً على السقوط
+    ctx.rotate(player.velocity * 0.03);
+    
+    // 1. الرأس
+    ctx.fillStyle = "#FFDBAC"; // لون البشرة
+    ctx.fillRect(-10, -22, 20, 20);
+    
+    // 2. الشعر
+    ctx.fillStyle = "#4B2C20"; 
+    ctx.fillRect(-10, -22, 20, 5);
+    
+    // 3. الجسم (قميص أزرق)
+    ctx.fillStyle = "#3498db";
+    ctx.fillRect(-12, -2, 24, 18);
+    
+    // 4. البنطال (أسود)
+    ctx.fillStyle = "#2c3e50";
+    ctx.fillRect(-12, 16, 24, 8);
 
-            if (bird.y > canvas.height || bird.y < 0) active = false;
+    // 5. العينين
+    ctx.fillStyle = "black";
+    ctx.fillRect(5, -12, 3, 3);
+    
+    ctx.restore();
+}
 
-            ctx.fillStyle = '#00f2fe';
-            ctx.fillRect(bird.x, bird.y, bird.size, bird.size);
+function createPipe() {
+    let minHeight = 50;
+    let maxHeight = canvas.height - pipeGap - 50;
+    let height = Math.floor(Math.random() * (maxHeight - minHeight + 1)) + minHeight;
+    pipes.push({ x: canvas.width, top: height, passed: false });
+}
 
-            if (pipes.length === 0 || pipes[pipes.length - 1].x < canvas.width - 250) createPipe();
+function update() {
+    if (!gameActive) return;
 
-            pipes.forEach((p, i) => {
-                p.x -= 4;
-                ctx.fillStyle = '#ff4b2b';
-                ctx.fillRect(p.x, 0, 60, p.top);
-                ctx.fillRect(p.x, p.top + p.gap, 60, canvas.height);
+    player.velocity += player.gravity;
+    player.y += player.velocity;
 
-                if (bird.x < p.x + 60 && bird.x + bird.size > p.x && (bird.y < p.top || bird.y + bird.size > p.top + p.gap)) active = false;
-                if (!p.passed && p.x < bird.x) { score++; scoreEl.innerText = score; p.passed = true; }
-                if (p.x + 60 < 0) pipes.splice(i, 1);
-            });
-
-            if (active) {
-                requestAnimationFrame(loop);
-            } else {
-                ctx.fillStyle = 'white';
-                ctx.font = '30px Arial';
-                ctx.textAlign = 'center';
-                ctx.fillText("انتهت اللعبة! اضغط للبدء", canvas.width/2, canvas.height/2);
-            }
-        }
-
-        function reset() {
-            bird.y = canvas.height/2; bird.velocity = 0; pipes = []; score = 0; scoreEl.innerText = 0; active = true; loop();
-        }
-
-        window.addEventListener('touchstart', (e) => { e.preventDefault(); if(!active) reset(); else bird.velocity = bird.jump; }, {passive: false});
-        window.addEventListener('mousedown', () => { if(!active) reset(); else bird.velocity = bird.jump; });
-
-        loop();
-    </script>
-</body>
-</html>
+    // حدود الشاشة
+    if (player.y + player.height > canvas.height || player.y < 0)
