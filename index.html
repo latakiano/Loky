@@ -3,124 +3,145 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Himalayan Horror Cave</title>
+    <title>Himalayan Cat Real Adventure</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: sans-serif; }
-        #ui { position: absolute; top: 10px; width: 100%; text-align: center; color: #ff3333; z-index: 20; pointer-events: none; }
-        .score { font-size: 40px; font-weight: bold; text-shadow: 0 0 10px #ff0000; }
-        .msg { color: #f1c40f; font-size: 18px; text-shadow: 2px 2px 4px #000; }
+        #gameUI { position: absolute; top: 15px; width: 100%; text-align: center; color: #ff3333; z-index: 50; pointer-events: none; }
+        .score-val { font-size: 50px; font-weight: bold; text-shadow: 0 0 15px #ff0000; color: #fff; }
+        .hero-label { color: #f1c40f; font-size: 18px; letter-spacing: 1px; background: rgba(0,0,0,0.4); padding: 5px; border-radius: 8px; }
     </style>
 </head>
 <body>
 
-<div id="ui">
-    <div class="msg">أنت في كهف الألغام.. خذ الكنوز يا بطل! 🏆</div>
-    <div class="score" id="scr">0</div>
-    <div style="color:#f1c40f">💰 Level: <span id="lvl">1</span> | Coins: <span id="cns">0</span></div>
+<div id="gameUI">
+    <div class="hero-label">أنت بطل يا مغامر.. القطة تثق بك! 🏆</div>
+    <div class="score-val" id="scoreDisplay">0</div>
+    <div style="color:#f1c40f; font-weight:bold;">Level: <span id="lvlDisplay">1</span> | 💰: <span id="coinDisplay">0</span></div>
 </div>
 
-<canvas id="game"></canvas>
+<canvas id="mainCanvas"></canvas>
 
 <script>
-    const canvas = document.getElementById('game');
+    const canvas = document.getElementById('mainCanvas');
     const ctx = canvas.getContext('2d');
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 
-    // صورة القطة الهيمالايا الطبيعية
-    const catImg = new Image();
-    catImg.src = 'https://i.imgur.com/WBy6v9S.png'; 
+    // صورة القطة الهيمالايا الطبيعية (رابط لصورة حقيقية)
+    const catSprite = new Image();
+    catSprite.src = 'https://i.imgur.com/WBy6v9S.png'; 
 
-    let bird = { x: 50, y: canvas.height/2, w: 70, h: 60, v: 0, g: 0.5, j: -8 };
-    let pipes = [], coins = [], redEyes = [], score = 0, totalCoins = 0, level = 1, speed = 4.5, active = true, win = false;
+    let player = { x: 60, y: canvas.height/2, w: 80, h: 70, velocity: 0, gravity: 0.5, jumpPower: -9 };
+    let obstacles = [], treasures = [], redEyes = [], score = 0, coins = 0, currentLevel = 1, moveSpeed = 5, isGameOver = false, isVictory = false;
 
-    // إنشاء عيون حمراء مرعبة في الخلفية
-    function createEyes() {
-        redEyes.push({ x: canvas.width + Math.random()*200, y: Math.random()*canvas.height, opacity: 1 });
+    // دالة لخلق عيون حمراء مرعبة خلف القطة
+    function addScaryEyes() {
+        redEyes.push({ x: canvas.width + 50, y: Math.random() * canvas.height, size: 3 + Math.random() * 3 });
     }
 
-    function createPipe() {
-        let gap = Math.max(140, 210 - (level * 3));
-        let top = Math.random() * (canvas.height - gap - 120) + 60;
-        pipes.push({ x: canvas.width, t: top, g: gap, p: false });
-        if (Math.random() > 0.4) coins.push({ x: canvas.width + 30, y: top + gap/2, r: 12, col: false });
-        if (Math.random() > 0.7) createEyes();
+    function spawnObstacle() {
+        let gapSize = Math.max(150, 220 - (currentLevel * 3));
+        let topH = Math.random() * (canvas.height - gapSize - 120) + 60;
+        obstacles.push({ x: canvas.width, top: topH, gap: gapSize, isPassed: false });
+        
+        if (Math.random() > 0.4) treasures.push({ x: canvas.width + 40, y: topH + gapSize/2, radius: 14, collected: false });
+        if (Math.random() > 0.6) addScaryEyes();
     }
 
-    function draw() {
-        // خلفية الكهف المظلمة
-        ctx.fillStyle = (level >= 20) ? "#200" : "#0a0a0a";
+    function render() {
+        // رسم الكهف المظلم بتدرج مخيف
+        let caveGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        caveGrad.addColorStop(0, '#050505');
+        caveGrad.addColorStop(1, (currentLevel >= 15) ? '#300000' : '#151515');
+        ctx.fillStyle = caveGrad;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // رسم العيون الحمراء المرعبة
-        redEyes.forEach((e, i) => {
-            e.x -= speed * 0.5;
-            ctx.fillStyle = `rgba(255, 0, 0, ${Math.sin(Date.now()/200)})`;
-            ctx.beginPath(); ctx.arc(e.x, e.y, 3, 0, Math.PI*2); ctx.fill();
-            ctx.beginPath(); ctx.arc(e.x + 15, e.y, 3, 0, Math.PI*2); ctx.fill();
-            if (e.x < -20) redEyes.splice(i, 1);
+        // تحريك ورسم العيون الحمراء
+        redEyes.forEach((eye, index) => {
+            eye.x -= moveSpeed * 0.4;
+            ctx.fillStyle = `rgba(255, 0, 0, ${Math.abs(Math.sin(Date.now()/500))})`;
+            ctx.beginPath(); ctx.arc(eye.x, eye.y, eye.size, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(eye.x + 18, eye.y, eye.size, 0, Math.PI*2); ctx.fill();
+            if (eye.x < -30) redEyes.splice(index, 1);
         });
 
-        if (win) {
-            ctx.fillStyle = "rgba(0,0,0,0.85)"; ctx.fillRect(0,0,canvas.width,canvas.height);
-            ctx.fillStyle = "#f1c40f"; ctx.font = "bold 30px Arial"; ctx.textAlign="center";
-            ctx.fillText("🏆 خذ الكأس يا بطل!", canvas.width/2, canvas.height/2);
+        if (isVictory) {
+            ctx.fillStyle = "rgba(0,0,0,0.9)"; ctx.fillRect(0,0,canvas.width,canvas.height);
+            ctx.fillStyle = "#f1c40f"; ctx.font = "bold 35px Arial"; ctx.textAlign="center";
+            ctx.fillText("🏆 مبروك يا بطل! نلت الكأس", canvas.width/2, canvas.height/2);
             return;
         }
 
-        // رسم القطة الهيمالايا الطبيعية
-        ctx.drawImage(catImg, bird.x, bird.y, bird.w, bird.h);
+        // رسم القطة الطبيعية (الصورة الحقيقية)
+        ctx.drawImage(catSprite, player.x, player.y, player.w, player.h);
 
         // رسم صخور الكهف (الألغام)
-        pipes.forEach((p, i) => {
-            p.x -= speed;
-            ctx.fillStyle = "#333";
-            ctx.fillRect(p.x, 0, 60, p.t); // صخور علوية
-            ctx.fillRect(p.x, p.t + p.g, 60, canvas.height); // صخور سفلية
+        obstacles.forEach((obs, i) => {
+            obs.x -= moveSpeed;
+            ctx.fillStyle = "#2c2c2c";
+            ctx.fillRect(obs.x, 0, 70, obs.top); // صخر علوي
+            ctx.fillRect(obs.x, obs.top + obs.gap, 70, canvas.height); // صخر سفلي
             
-            // تصادم
-            if (bird.x < p.x + 60 && bird.x + bird.w > p.x && (bird.y < p.t || bird.y + bird.h > p.t + p.g)) active = false;
+            // كشف الاصطدام
+            if (player.x < obs.x + 70 && player.x + player.w > obs.x && (player.y < obs.top || player.y + player.h > obs.top + obs.gap)) isGameOver = true;
             
-            if (!p.p && p.x < bird.x) {
-                score++; p.p = true; document.getElementById('scr').innerText = score;
-                if (score % 5 === 0) { level++; speed += 0.5; document.getElementById('lvl').innerText = level; }
-                if (level >= 20) win = true;
+            if (!obs.isPassed && obs.x < player.x) {
+                score++; obs.isPassed = true;
+                document.getElementById('scoreDisplay').innerText = score;
+                if (score % 5 === 0) {
+                    currentLevel++; moveSpeed += 0.6;
+                    document.getElementById('lvlDisplay').innerText = currentLevel;
+                }
+                if (currentLevel >= 20) isVictory = true;
             }
-            if (p.x + 60 < 0) pipes.splice(i, 1);
+            if (obs.x + 70 < 0) obstacles.splice(i, 1);
         });
 
-        // رسم الكنوز
-        coins.forEach((c, i) => {
-            c.x -= speed;
-            if (!c.col) {
-                ctx.fillStyle = "#FFD700"; ctx.beginPath(); ctx.arc(c.x, c.y, c.r, 0, Math.PI*2); ctx.fill();
-                if (Math.abs(bird.x - c.x) < 45 && Math.abs(bird.y - c.y) < 45) { c.col = true; totalCoins++; document.getElementById('cns').innerText = totalCoins; }
+        // رسم الكنوز (الجوائز)
+        treasures.forEach((coin, i) => {
+            coin.x -= moveSpeed;
+            if (!coin.collected) {
+                ctx.fillStyle = "#FFD700"; ctx.beginPath(); ctx.arc(coin.x, coin.y, coin.radius, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = "#fff"; ctx.font = "bold 12px Arial"; ctx.fillText("⭐", coin.x-6, coin.y+5);
+                if (Math.abs(player.x - coin.x) < 50 && Math.abs(player.y - coin.y) < 50) {
+                    coin.collected = true; coins++;
+                    document.getElementById('coinDisplay').innerText = coins;
+                }
             }
-            if (c.x + 20 < 0) coins.splice(i, 1);
+            if (coin.x + 20 < 0) treasures.splice(i, 1);
         });
 
-        if (active) {
-            bird.v += bird.g; bird.y += bird.v;
-            if (bird.y > canvas.height || bird.y < 0) active = false;
-            if (pipes.length === 0 || pipes[pipes.length-1].x < canvas.width - 280) createPipe();
-            requestAnimationFrame(draw);
+        if (!isGameOver) {
+            player.velocity += player.gravity;
+            player.y += player.velocity;
+            if (player.y > canvas.height || player.y < 0) isGameOver = true;
+            if (obstacles.length === 0 || obstacles[obstacles.length-1].x < canvas.width - 320) spawnObstacle();
+            requestAnimationFrame(render);
         } else {
             ctx.fillStyle = "rgba(0,0,0,0.7)"; ctx.fillRect(0,0,canvas.width,canvas.height);
-            ctx.fillStyle = "#fff"; ctx.font = "20px Arial"; ctx.textAlign="center";
-            ctx.fillText("سقط البطل! المس الشاشة للنهوض مجدداً", canvas.width/2, canvas.height/2);
+            ctx.fillStyle = "#fff"; ctx.font = "24px Arial"; ctx.textAlign="center";
+            ctx.fillText("سقط البطل! المس الشاشة للمحاولة ثانية", canvas.width/2, canvas.height/2);
         }
     }
 
-    function reset() {
-        bird.y = canvas.height/2; bird.v = 0; pipes = []; coins = []; redEyes = []; score = 0; level = 1; speed = 4.5; active = true; win = false; draw();
+    function restartGame() {
+        player.y = canvas.height/2; player.velocity = 0; obstacles = []; treasures = []; redEyes = []; 
+        score = 0; coins = 0; currentLevel = 1; moveSpeed = 5; isGameOver = false; isVictory = false;
+        document.getElementById('scoreDisplay').innerText = "0";
+        document.getElementById('lvlDisplay').innerText = "1";
+        document.getElementById('coinDisplay').innerText = "0";
+        render();
     }
 
-    const play = () => { if(!active || win) reset(); else bird.v = bird.j; };
-    window.addEventListener('mousedown', play);
-    window.addEventListener('touchstart', (e) => { e.preventDefault(); play(); }, {passive: false});
+    const handleInput = (e) => { 
+        if(e.type === 'touchstart') e.preventDefault();
+        if(isGameOver || isVictory) restartGame(); else player.velocity = player.jumpPower; 
+    };
+    window.addEventListener('mousedown', handleInput);
+    window.addEventListener('touchstart', handleInput, {passive: false});
 
-    createPipe();
-    draw();
+    spawnObstacle();
+    render();
 </script>
 </body>
 </html>
