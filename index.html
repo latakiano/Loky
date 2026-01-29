@@ -3,65 +3,82 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>LOKY - الإنسان الطائر</title>
+    <title>تحدي الـ 20 مرحلة - LOKY</title>
     <style>
-        body { margin: 0; padding: 0; overflow: hidden; background: #000; }
+        body { margin: 0; padding: 0; overflow: hidden; background: #1a1a1a; font-family: Arial; }
         canvas { display: block; }
-        #score {
+        #ui {
             position: absolute; top: 10px; width: 100%; text-align: center;
-            color: #00f2fe; font-family: Arial; font-size: 35px; font-weight: bold;
-            pointer-events: none; text-shadow: 2px 2px 4px #000;
+            color: #fff; pointer-events: none; text-shadow: 2px 2px 4px #000;
         }
+        .level-text { color: #f1c40f; font-size: 20px; }
+        .score-text { color: #00f2fe; font-size: 40px; font-weight: bold; }
     </style>
 </head>
 <body>
-    <div id="score">0</div>
+    <div id="ui">
+        <div class="level-text" id="levelDisplay">المرحلة: 1</div>
+        <div class="score-text" id="scoreBoard">0</div>
+    </div>
     <canvas id="game"></canvas>
 
 <script>
-    // بداية البرمجة - كل شيء هنا يجب أن يكون ملوناً في محررك
     const canvas = document.getElementById('game');
     const ctx = canvas.getContext('2d');
-    const scoreDisplay = document.getElementById('score');
+    const scoreDisplay = document.getElementById('scoreBoard');
+    const levelDisplay = document.getElementById('levelDisplay');
 
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 
-    let human = { x: 50, y: canvas.height/2, w: 30, h: 40, v: 0, g: 0.6, jump: -10 };
+    let bird = { x: 50, y: canvas.height/2, w: 30, h: 40, v: 0, g: 0.6, jump: -9 };
     let pipes = [];
     let score = 0;
+    let level = 1;
+    let gameSpeed = 4;
     let running = true;
+    let won = false;
 
     function createPipe() {
-        let gap = 200;
+        let gap = 200 - (level * 2); // الفتحة تضيق قليلاً كل مرحلة
         let top = Math.random() * (canvas.height - gap - 100) + 50;
-        pipes.push({ x: canvas.width, top: top, bottom: canvas.height - top - gap, passed: false });
+        pipes.push({ x: canvas.width, top: top, gap: gap, passed: false });
     }
 
     function drawHuman(x, y) {
-        // رسم شخصية بسيطة (رأس وجسم)
-        ctx.fillStyle = "#FFDBAC"; // الرأس
-        ctx.fillRect(x + 5, y, 20, 20);
-        ctx.fillStyle = "#3498db"; // الجسم
-        ctx.fillRect(x, y + 20, 30, 20);
+        ctx.fillStyle = "#FFDBAC"; ctx.fillRect(x + 5, y, 20, 20); // رأس
+        ctx.fillStyle = "#3498db"; ctx.fillRect(x, y + 20, 30, 20); // جسم
     }
 
     function update() {
-        if (!running) return;
-        human.v += human.g;
-        human.y += human.v;
+        if (!running || won) return;
+        bird.v += bird.g;
+        bird.y += bird.v;
 
-        if (human.y + human.h > canvas.height || human.y < 0) running = false;
+        if (bird.y + bird.h > canvas.height || bird.y < 0) running = false;
 
         if (pipes.length === 0 || pipes[pipes.length - 1].x < canvas.width - 280) createPipe();
 
         pipes.forEach((p, i) => {
-            p.x -= 4;
-            // اصطدام
-            if (human.x < p.x + 50 && human.x + human.w > p.x && (human.y < p.top || human.y + human.h > canvas.height - p.bottom)) running = false;
-            // نقاط
-            if (!p.passed && p.x < human.x) { score++; scoreDisplay.innerText = score; p.passed = true; }
-            if (p.x + 50 < 0) pipes.splice(i, 1);
+            p.x -= gameSpeed;
+            if (bird.x < p.x + 55 && bird.x + bird.w > p.x && (bird.y < p.top || bird.y + bird.h > p.top + p.gap)) running = false;
+            
+            if (!p.passed && p.x < bird.x) {
+                score++;
+                scoreDisplay.innerText = score;
+                p.passed = true;
+                
+                // نظام الانتقال بين المراحل (كل 5 نقاط مرحلة)
+                if (score % 5 === 0) {
+                    level++;
+                    if (level > 20) { won = true; }
+                    else {
+                        levelDisplay.innerText = "المرحلة: " + level;
+                        gameSpeed += 0.5; // زيادة السرعة
+                    }
+                }
+            }
+            if (p.x + 60 < 0) pipes.splice(i, 1);
         });
     }
 
@@ -69,31 +86,54 @@
         ctx.fillStyle = '#1a1a1a';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         
-        drawHuman(human.x, human.y);
+        if (won) {
+            drawWinScreen();
+            return;
+        }
 
-        ctx.fillStyle = '#2ecc71'; // لون الأعمدة
+        drawHuman(bird.x, bird.y);
+        ctx.fillStyle = '#2ecc71';
         pipes.forEach(p => {
-            ctx.fillRect(p.x, 0, 50, p.top);
-            ctx.fillRect(p.x, canvas.height - p.bottom, 50, p.bottom);
+            ctx.fillRect(p.x, 0, 55, p.top);
+            ctx.fillRect(p.x, p.top + p.gap, 55, canvas.height);
         });
 
         update();
         if (running) {
             requestAnimationFrame(draw);
         } else {
-            ctx.fillStyle = 'white';
-            ctx.font = '25px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText("جيم أوفر! المس لإعادة المحاولة", canvas.width/2, canvas.height/2);
+            drawGameOver();
         }
     }
 
-    function reset() {
-        human.y = canvas.height/2; human.v = 0; pipes = []; score = 0; scoreDisplay.innerText = 0; running = true; draw();
+    function drawWinScreen() {
+        ctx.fillStyle = "rgba(0,0,0,0.8)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "#f1c40f";
+        ctx.font = "60px Arial"; ctx.textAlign = "center";
+        ctx.fillText("🏆", canvas.width/2, canvas.height/2 - 50);
+        ctx.font = "30px Arial";
+        ctx.fillText("مبروك! استلمت الكأس", canvas.width/2, canvas.height/2 + 20);
+        ctx.font = "18px Arial";
+        ctx.fillText("لقد ختمت الـ 20 مرحلة بنجاح", canvas.width/2, canvas.height/2 + 60);
     }
 
-    window.addEventListener('touchstart', (e) => { e.preventDefault(); if(!running) reset(); else human.v = human.jump; }, {passive: false});
-    window.addEventListener('mousedown', () => { if(!running) reset(); else human.v = human.jump; });
+    function drawGameOver() {
+        ctx.fillStyle = "rgba(0,0,0,0.7)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "white";
+        ctx.font = "25px Arial"; ctx.textAlign = "center";
+        ctx.fillText("خسرت في المرحلة " + level, canvas.width/2, canvas.height/2);
+        ctx.fillText("المس للإعادة", canvas.width/2, canvas.height/2 + 50);
+    }
+
+    function reset() {
+        bird.y = canvas.height/2; bird.v = 0; pipes = []; score = 0; level = 1; gameSpeed = 4;
+        scoreDisplay.innerText = 0; levelDisplay.innerText = "المرحلة: 1"; running = true; won = false; draw();
+    }
+
+    window.addEventListener('touchstart', (e) => { e.preventDefault(); if(!running || won) reset(); else bird.v = bird.jump; }, {passive: false});
+    window.addEventListener('mousedown', () => { if(!running || won) reset(); else bird.v = bird.jump; });
 
     draw();
 </script>
