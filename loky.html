@@ -1,37 +1,130 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="ar">
 <head>
     <meta charset="UTF-8">
-    <title>تحدي المكعب الأسطوري - اربح الآن</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لعبة لوكي - LOKY GAME</title>
     <style>
-        /* تصميم احترافي لجذب المعلنين */
-        body { margin: 0; background: #111; color: white; text-align: center; font-family: sans-serif; }
-        #ad-top { height: 90px; background: #222; border-bottom: 2px solid #444; line-height: 90px; color: #777; }
-        canvas { display: block; margin: auto; background: #000; box-shadow: 0 0 20px #00f2fe; }
-        .btn-share { background: #25D366; color: white; padding: 15px; border: none; border-radius: 5px; font-size: 18px; cursor: pointer; margin-top: 10px; }
+        body { margin: 0; background: #111; color: white; overflow: hidden; font-family: sans-serif; text-align: center; }
+        canvas { display: block; background: #000; margin: auto; border: 2px solid #00f2fe; }
+        #ui { position: absolute; top: 10px; width: 100%; pointer-events: none; font-size: 24px; color: #00f2fe; text-shadow: 2px 2px 5px #000; }
     </style>
 </head>
 <body>
 
-<div id="ad-top">-- مساحة إعلان AdSense هنا --</div>
-
-<h1 style="color:#00f2fe;">تحدي المكعب المستحيل 🚀</h1>
-<p>حطم الرقم القياسي وشارك نتيجتك مع أصدقائك!</p>
+<div id="ui">السكور: <span id="score">0</span></div>
 
 <canvas id="gameCanvas"></canvas>
 
-<div id="game-ui" style="margin-top:20px;">
-    <button class="btn-share" onclick="shareGame()">🔥 تحدى أصدقائك على واتساب</button>
-</div>
-
 <script>
-    // هنا سأضع لك نفس منطق اللعبة السابق مع تحسينات في السرعة
-    // (انسخ منطق اللعبة المطور الذي أعطيتك إياه سابقاً وضعه هنا)
-    function shareGame() {
-        const url = window.location.href;
-        window.open("https://api.whatsapp.com/send?text=أتحداك تكسر رقمي في هذه اللعبة: " + url);
-    }
-</script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
 
+// ضبط حجم الشاشة لتملأ المتصفح
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+let score = 0;
+let gameActive = true;
+let pipes = [];
+const pipeWidth = 60;
+const pipeGap = 200;
+
+const player = {
+    x: 50,
+    y: canvas.height / 2,
+    size: 30,
+    velocity: 0,
+    gravity: 0.6,
+    jump: -10
+};
+
+function createPipe() {
+    let height = Math.random() * (canvas.height - pipeGap - 100) + 50;
+    pipes.push({ x: canvas.width, top: height, passed: false });
+}
+
+function update() {
+    if (!gameActive) return;
+
+    player.velocity += player.gravity;
+    player.y += player.velocity;
+
+    if (player.y + player.size > canvas.height || player.y < 0) gameActive = false;
+
+    if (pipes.length === 0 || pipes[pipes.length - 1].x < canvas.width - 300) createPipe();
+
+    pipes.forEach((pipe, i) => {
+        pipe.x -= 5;
+        // تصادم
+        if (player.x < pipe.x + pipeWidth && player.x + player.size > pipe.x &&
+            (player.y < pipe.top || player.y + player.size > pipe.top + pipeGap)) {
+            gameActive = false;
+        }
+        // نقاط
+        if (!pipe.passed && pipe.x < player.x) {
+            score++;
+            document.getElementById('score').innerText = score;
+            pipe.passed = true;
+        }
+        if (pipe.x + pipeWidth < 0) pipes.splice(i, 1);
+    });
+}
+
+function draw() {
+    // تنظيف الشاشة ورسم الخلفية
+    ctx.fillStyle = "#111";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // رسم اللاعب (المربع)
+    ctx.fillStyle = "#00f2fe";
+    ctx.shadowBlur = 15;
+    ctx.shadowColor = "#00f2fe";
+    ctx.fillRect(player.x, player.y, player.size, player.size);
+
+    // رسم العوائق
+    ctx.shadowBlur = 0;
+    pipes.forEach(pipe => {
+        ctx.fillStyle = "#ff4b2b";
+        ctx.fillRect(pipe.x, 0, pipeWidth, pipe.top); // العمود العلوي
+        ctx.fillRect(pipe.x, pipe.top + pipeGap, pipeWidth, canvas.height); // العمود السفلي
+    });
+
+    if (gameActive) {
+        update();
+        requestAnimationFrame(draw);
+    } else {
+        ctx.fillStyle = "rgba(0,0,0,0.7)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "white";
+        ctx.font = "40px Arial";
+        ctx.fillText("Game Over!", canvas.width/2 - 100, canvas.height/2);
+        ctx.font = "20px Arial";
+        ctx.fillText("اضغط لإعادة اللعب", canvas.width/2 - 70, canvas.height/2 + 50);
+    }
+}
+
+// التحكم
+function action() {
+    if (!gameActive) {
+        // إعادة تشغيل
+        player.y = canvas.height / 2;
+        player.velocity = 0;
+        pipes = [];
+        score = 0;
+        document.getElementById('score').innerText = score;
+        gameActive = true;
+        draw();
+    } else {
+        player.velocity = player.jump;
+    }
+}
+
+window.addEventListener('keydown', (e) => { if(e.code === 'Space') action(); });
+window.addEventListener('touchstart', (e) => { e.preventDefault(); action(); }, {passive: false});
+
+// بدء الرسم لأول مرة
+draw();
+</script>
 </body>
 </html>
