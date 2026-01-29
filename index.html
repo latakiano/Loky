@@ -3,144 +3,124 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>LOKY ADVENTURE - مغامرة البطل</title>
+    <title>مغامرة القطة هيمالايا 🐾</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #000; font-family: 'Cairo', sans-serif; }
-        #ui { position: absolute; top: 10px; width: 100%; text-align: center; color: white; pointer-events: none; z-index: 10; }
-        .hero-msg { color: #f1c40f; font-size: 18px; font-weight: bold; animation: glow 1s infinite alternate; }
-        .score-box { font-size: 45px; font-weight: bold; color: #00f2fe; }
-        @keyframes glow { from { text-shadow: 0 0 5px #f1c40f; } to { text-shadow: 0 0 20px #f39c12; } }
+        body { margin: 0; overflow: hidden; background: #87CEEB; font-family: 'Arial', sans-serif; }
+        #ui { position: absolute; top: 10px; width: 100%; text-align: center; color: #fff; z-index: 10; pointer-events: none; }
+        .hero-msg { background: rgba(0,0,0,0.3); padding: 5px; border-radius: 10px; color: #f1c40f; font-weight: bold; }
+        .stats { font-size: 24px; text-shadow: 2px 2px 4px #000; }
     </style>
 </head>
 <body>
 
-    <div id="ui">
-        <div class="hero-msg">طريقك ألغام.. لكن عندك كنوز اقطفها!</div>
-        <div id="lvlLab" style="color:#00f2fe">المرحلة: 1</div>
-        <div id="scrLab" class="score-box">0</div>
-        <div style="color:#f1c40f">💰 كنوزك: <span id="coinLab">0</span></div>
+<div id="ui">
+    <div class="hero-msg">هيا يا بطل.. القطة هيمالايا تنتظر الكأس! 🏆</div>
+    <div class="stats">
+        المرحلة: <span id="lvl">1</span> | 
+        النقاط: <span id="scr">0</span> | 
+        💰: <span id="cns">0</span>
     </div>
+</div>
 
-    <audio id="bgMusic" loop>
-        <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" type="audio/mpeg">
-    </audio>
+<audio id="music" loop>
+    <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3" type="audio/mpeg">
+</audio>
 
-    <canvas id="gameCanvas"></canvas>
+<canvas id="game"></canvas>
 
 <script>
-    const canvas = document.getElementById('gameCanvas');
+    const canvas = document.getElementById('game');
     const ctx = canvas.getContext('2d');
-    const music = document.getElementById('bgMusic');
-    
+    const music = document.getElementById('music');
+
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 
-    let bird = { x: 50, y: canvas.height/2, w: 30, h: 40, v: 0, g: 0.6, j: -9 };
-    let pipes = [];
-    let coins = [];
-    let score = 0;
-    let totalCoins = 0;
-    let level = 1;
-    let speed = 4;
-    let active = true;
-    let win = false;
-    let musicStarted = false;
+    let cat = { x: 50, y: canvas.height/2, w: 50, h: 50, v: 0, g: 0.5, j: -8 };
+    let pipes = [], coins = [], score = 0, totalCoins = 0, level = 1, speed = 4, active = true, win = false;
 
-    const colors = ["#ff4757", "#2ed573", "#1e90ff", "#ffa502", "#5352ed", "#ff6b81"];
+    // رسم القطة هيمالايا (تمثيل برمجى جميل)
+    function drawCat(x, y) {
+        ctx.save();
+        // ظل القطة لتبدو 3D
+        ctx.fillStyle = "rgba(0,0,0,0.2)";
+        ctx.beginPath(); ctx.ellipse(x+25, y+55, 20, 5, 0, 0, Math.PI*2); ctx.fill();
 
-    function createPipe() {
-        let gap = Math.max(160, 210 - (level * 2.5));
-        let top = Math.random() * (canvas.height - gap - 120) + 60;
-        pipes.push({ x: canvas.width, t: top, g: gap, p: false, color: colors[level % colors.length] });
+        // جسم القطة (أبيض كريمي)
+        ctx.fillStyle = "#F5F5DC";
+        ctx.beginPath(); ctx.roundRect(x, y, 50, 40, 15); ctx.fill();
         
-        // الكنوز (الجوائز)
-        if (Math.random() > 0.4) {
-            coins.push({ x: canvas.width + 25, y: top + gap/2, r: 12, c: false });
-        }
+        // الأذنين والوجه (بني غامق - ميزة الهيمالايا)
+        ctx.fillStyle = "#4B3621";
+        ctx.beginPath(); ctx.moveTo(x+5, y); ctx.lineTo(x+15, y-10); ctx.lineTo(x+20, y); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(x+30, y); ctx.lineTo(x+35, y-10); ctx.lineTo(x+45, y); ctx.fill();
+        ctx.fillRect(x+15, y+10, 20, 15); // قناع الوجه
+
+        // العيون الزرقاء الجذابة
+        ctx.fillStyle = "#00BFFF";
+        ctx.beginPath(); ctx.arc(x+20, y+15, 3, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(x+30, y+15, 3, 0, Math.PI*2); ctx.fill();
+        ctx.restore();
     }
 
-    function draw() {
-        // خلفية تتغير في المرحلة الأخيرة
-        ctx.fillStyle = (level >= 20) ? "#300" : "#111";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    function createPipe() {
+        let gap = 180 - (level * 2);
+        let top = Math.random() * (canvas.height - gap - 100) + 50;
+        let color = `hsl(${Math.random() * 360}, 70%, 50%)`;
+        pipes.push({ x: canvas.width, t: top, g: gap, p: false, c: color });
+        if (Math.random() > 0.4) coins.push({ x: canvas.width + 25, y: top + gap/2, collected: false });
+    }
 
+    function loop() {
+        // خلفية سماوية مع سحب بسيطة
+        ctx.fillStyle = "#87CEEB"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
         if (win) {
-            ctx.fillStyle = "rgba(0,0,0,0.8)"; ctx.fillRect(0,0,canvas.width,canvas.height);
-            ctx.fillStyle = "#f1c40f"; ctx.font = "bold 40px Arial"; ctx.textAlign = "center";
-            ctx.fillText("🏆 خذ الكأس يا بطل!", canvas.width/2, canvas.height/2);
-            ctx.font = "20px Arial"; ctx.fillText("أنت مغامر حقيقي وختمت اللعبة!", canvas.width/2, canvas.height/2 + 50);
+            ctx.fillStyle = "rgba(255,215,0,0.9)"; ctx.fillRect(0,0,canvas.width,canvas.height);
+            ctx.fillStyle = "#000"; ctx.font = "bold 30px Arial"; ctx.textAlign="center";
+            ctx.fillText("🥇 مبروك يا بطل! استلمت الكأس", canvas.width/2, canvas.height/2);
             return;
         }
 
-        // رسم البطل (الإنسان)
-        ctx.fillStyle = "#FFDBAC"; ctx.fillRect(bird.x + 5, bird.y, 20, 20); // الرأس
-        ctx.fillStyle = "#1e90ff"; ctx.fillRect(bird.x, bird.y + 20, 30, 20); // القميص
+        drawCat(cat.x, cat.y);
 
-        // رسم الألغام (الحواجز)
         pipes.forEach((p, i) => {
             p.x -= speed;
-            ctx.fillStyle = p.color;
+            ctx.fillStyle = p.c;
             ctx.fillRect(p.x, 0, 60, p.t);
             ctx.fillRect(p.x, p.t + p.g, 60, canvas.height);
-            
-            // تصادم
-            if (bird.x < p.x + 60 && bird.x + 30 > p.x && (bird.y < p.t || bird.y + 40 > p.t + p.g)) active = false;
-            
-            if (!p.p && p.x < bird.x) {
-                score++; p.p = true; document.getElementById('scrLab').innerText = score;
-                if (score % 5 === 0) {
-                    level++; speed += 0.4; 
-                    document.getElementById('lvlLab').innerText = "المرحلة: " + level;
-                }
-                if (level > 20) win = true;
+
+            if (cat.x < p.x + 60 && cat.x + 40 > p.x && (cat.y < p.t || cat.y + 35 > p.t + p.g)) active = false;
+            if (!p.p && p.x < cat.x) {
+                score++; p.p = true; document.getElementById('scr').innerText = score;
+                if (score % 5 === 0) { level++; speed += 0.5; document.getElementById('lvl').innerText = level; }
+                if (level >= 20) win = true;
             }
-            if (p.x + 60 < 0) pipes.splice(i, 1);
         });
 
-        // رسم الكنوز
         coins.forEach((c, i) => {
             c.x -= speed;
-            if (!c.c) {
-                ctx.fillStyle = "#f1c40f"; ctx.beginPath();
-                ctx.arc(c.x, c.y, c.r, 0, Math.PI*2); ctx.fill();
-                ctx.fillStyle = "#000"; ctx.font = "12px Arial"; ctx.fillText("⭐", c.x-6, c.y+5);
+            if (!c.collected) {
+                ctx.fillStyle = "#FFD700"; ctx.beginPath(); ctx.arc(c.x, c.y, 12, 0, Math.PI*2); ctx.fill();
+                if (Math.abs(cat.x - c.x) < 40 && Math.abs(cat.y - c.y) < 40) { c.collected = true; totalCoins++; document.getElementById('cns').innerText = totalCoins; }
             }
-            let dx = bird.x - c.x; let dy = bird.y - c.y;
-            if (!c.c && Math.sqrt(dx*dx + dy*dy) < 35) {
-                c.c = true; totalCoins++; document.getElementById('coinLab').innerText = totalCoins;
-            }
-            if (c.x + 20 < 0) coins.splice(i, 1);
         });
 
         if (active) {
-            bird.v += bird.g; bird.y += bird.v;
-            if (bird.y > canvas.height || bird.y < 0) active = false;
+            cat.v += cat.g; cat.y += cat.v;
+            if (cat.y > canvas.height || cat.y < 0) active = false;
             if (pipes.length === 0 || pipes[pipes.length-1].x < canvas.width - 280) createPipe();
-            requestAnimationFrame(draw);
+            requestAnimationFrame(loop);
         } else {
-            ctx.fillStyle = "rgba(0,0,0,0.7)"; ctx.fillRect(0,0,canvas.width,canvas.height);
-            ctx.fillStyle = "white"; ctx.font = "25px Arial"; ctx.textAlign = "center";
-            ctx.fillText("هيا يا بطل.. حاول مرة أخرى!", canvas.width/2, canvas.height/2);
-            ctx.font = "15px Arial"; ctx.fillText("المس الشاشة للاستمرار", canvas.width/2, canvas.height/2 + 50);
+            ctx.fillStyle = "rgba(0,0,0,0.5)"; ctx.fillRect(0,0,canvas.width,canvas.height);
+            ctx.fillStyle = "#fff"; ctx.font = "25px Arial"; ctx.textAlign="center";
+            ctx.fillText("حاول مجدداً يا بطل القطة هيمالايا تثق بك!", canvas.width/2, canvas.height/2);
         }
     }
 
-    function reset() {
-        bird.y = canvas.height/2; bird.v = 0; pipes = []; coins = []; score = 0; level = 1; speed = 4;
-        active = true; win = false; document.getElementById('scrLab').innerText = "0";
-        document.getElementById('lvlLab').innerText = "المرحلة: 1"; draw();
-    }
-
-    function handleAction() {
-        if (!musicStarted) { music.play(); musicStarted = true; }
-        if (!active || win) reset(); else bird.v = bird.j;
-    }
-
-    window.addEventListener('mousedown', handleAction);
-    window.addEventListener('touchstart', (e) => { e.preventDefault(); handleAction(); }, {passive: false});
-
-    createPipe();
-    draw();
-</script>
-</body>
-</html>
+    function start(e) {
+        if (e) e.preventDefault();
+        music.play();
+        if (!active || win) { 
+            cat.y = canvas.height/2; cat.v = 0; pipes = []; coins = []; score = 0; level = 1; speed = 4; active = true; win = false; loop(); 
+        } else { cat.v = cat
