@@ -3,125 +3,121 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>مغامرة الكهف المرعب 🐾</title>
+    <title>Himalayan Horror Cave</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #050505; font-family: 'Courier New', Courier, monospace; }
-        #ui { position: absolute; top: 10px; width: 100%; text-align: center; color: #ff4d4d; z-index: 20; pointer-events: none; }
-        .stats { font-size: 22px; text-shadow: 0 0 10px #ff0000; letter-spacing: 2px; }
-        .hero-msg { color: #f1c40f; font-size: 16px; margin-bottom: 5px; }
+        body { margin: 0; overflow: hidden; background: #000; font-family: sans-serif; }
+        #ui { position: absolute; top: 10px; width: 100%; text-align: center; color: #ff3333; z-index: 20; pointer-events: none; }
+        .score { font-size: 40px; font-weight: bold; text-shadow: 0 0 10px #ff0000; }
+        .msg { color: #f1c40f; font-size: 18px; text-shadow: 2px 2px 4px #000; }
     </style>
 </head>
 <body>
 
 <div id="ui">
-    <div class="hero-msg">احذر الزواحف والطيور الجارحة.. اقطف كنوز الكهف! 🦇</div>
-    <div class="stats">Level: <span id="lvl">1</span> | Score: <span id="scr">0</span> | 💰: <span id="cns">0</span></div>
+    <div class="msg">أنت في كهف الألغام.. خذ الكنوز يا بطل! 🏆</div>
+    <div class="score" id="scr">0</div>
+    <div style="color:#f1c40f">💰 Level: <span id="lvl">1</span> | Coins: <span id="cns">0</span></div>
 </div>
 
-<canvas id="gameCanvas"></canvas>
+<canvas id="game"></canvas>
 
 <script>
-    const canvas = document.getElementById('gameCanvas');
+    const canvas = document.getElementById('game');
     const ctx = canvas.getContext('2d');
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 
-    // تحميل صورة القطة الهيمالايا (الحقيقية)
+    // صورة القطة الهيمالايا الطبيعية
     const catImg = new Image();
     catImg.src = 'https://i.imgur.com/WBy6v9S.png'; 
 
-    let cat = { x: 50, y: canvas.height/2, w: 70, h: 60, v: 0, g: 0.45, j: -8 };
-    let pipes = [], coins = [], bats = [], score = 0, totalCoins = 0, level = 1, speed = 4.5, active = true, win = false;
+    let bird = { x: 50, y: canvas.height/2, w: 70, h: 60, v: 0, g: 0.5, j: -8 };
+    let pipes = [], coins = [], redEyes = [], score = 0, totalCoins = 0, level = 1, speed = 4.5, active = true, win = false;
 
-    // دالة إنشاء الحواجز (صخور الكهف المدببة)
+    // إنشاء عيون حمراء مرعبة في الخلفية
+    function createEyes() {
+        redEyes.push({ x: canvas.width + Math.random()*200, y: Math.random()*canvas.height, opacity: 1 });
+    }
+
     function createPipe() {
-        let gap = Math.max(140, 200 - (level * 2));
-        let top = Math.random() * (canvas.height - gap - 150) + 70;
+        let gap = Math.max(140, 210 - (level * 3));
+        let top = Math.random() * (canvas.height - gap - 120) + 60;
         pipes.push({ x: canvas.width, t: top, g: gap, p: false });
-        
-        // فرصة لظهور خفاش أو طائر جارح
-        if (Math.random() > 0.6) {
-            bats.push({ x: canvas.width + 100, y: Math.random() * canvas.height, w: 40, h: 30 });
-        }
-        
-        // الكنوز الذهبية
-        if (Math.random() > 0.4) {
-            coins.push({ x: canvas.width + 30, y: top + gap/2, r: 12, col: false });
-        }
+        if (Math.random() > 0.4) coins.push({ x: canvas.width + 30, y: top + gap/2, r: 12, col: false });
+        if (Math.random() > 0.7) createEyes();
     }
 
     function draw() {
-        // خلفية الكهف المرعب (تدرج من الأسود للرمادي الصخري)
-        let bgGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-        bgGrad.addColorStop(0, '#000000');
-        bgGrad.addColorStop(0.5, '#1a1a1a');
-        bgGrad.addColorStop(1, '#0d0d0d');
-        ctx.fillStyle = bgGrad;
+        // خلفية الكهف المظلمة
+        ctx.fillStyle = (level >= 20) ? "#200" : "#0a0a0a";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // رسم "الضباب" لإضافة جو رعب
-        ctx.fillStyle = "rgba(255, 255, 255, 0.05)";
-        ctx.fillRect(Math.random()*canvas.width, 0, 2, canvas.height);
+        // رسم العيون الحمراء المرعبة
+        redEyes.forEach((e, i) => {
+            e.x -= speed * 0.5;
+            ctx.fillStyle = `rgba(255, 0, 0, ${Math.sin(Date.now()/200)})`;
+            ctx.beginPath(); ctx.arc(e.x, e.y, 3, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(e.x + 15, e.y, 3, 0, Math.PI*2); ctx.fill();
+            if (e.x < -20) redEyes.splice(i, 1);
+        });
 
         if (win) {
-            ctx.fillStyle = "rgba(0,0,0,0.9)"; ctx.fillRect(0,0,canvas.width,canvas.height);
+            ctx.fillStyle = "rgba(0,0,0,0.85)"; ctx.fillRect(0,0,canvas.width,canvas.height);
             ctx.fillStyle = "#f1c40f"; ctx.font = "bold 30px Arial"; ctx.textAlign="center";
-            ctx.fillText("🏆 مبروك! البطل الهيمالاي ختم الكهف", canvas.width/2, canvas.height/2);
+            ctx.fillText("🏆 خذ الكأس يا بطل!", canvas.width/2, canvas.height/2);
             return;
         }
 
-        // رسم القطة الهيمالايا
-        ctx.drawImage(catImg, cat.x, cat.y, cat.w, cat.h);
+        // رسم القطة الهيمالايا الطبيعية
+        ctx.drawImage(catImg, bird.x, bird.y, bird.w, bird.h);
 
-        // رسم صخور الكهف (الحواجز)
+        // رسم صخور الكهف (الألغام)
         pipes.forEach((p, i) => {
             p.x -= speed;
-            let grad = ctx.createLinearGradient(p.x, 0, p.x + 60, 0);
-            grad.addColorStop(0, '#333'); grad.addColorStop(0.5, '#555'); grad.addColorStop(1, '#222');
-            ctx.fillStyle = grad;
-            ctx.fillRect(p.x, 0, 60, p.t); // الصخور العلوية
-            ctx.fillRect(p.x, p.t + p.g, 60, canvas.height); // الصخور السفلية
-
-            if (cat.x < p.x + 60 && cat.x + cat.w > p.x && (cat.y < p.t || cat.y + cat.h > p.t + p.g)) active = false;
-            if (!p.p && p.x < cat.x) {
+            ctx.fillStyle = "#333";
+            ctx.fillRect(p.x, 0, 60, p.t); // صخور علوية
+            ctx.fillRect(p.x, p.t + p.g, 60, canvas.height); // صخور سفلية
+            
+            // تصادم
+            if (bird.x < p.x + 60 && bird.x + bird.w > p.x && (bird.y < p.t || bird.y + bird.h > p.t + p.g)) active = false;
+            
+            if (!p.p && p.x < bird.x) {
                 score++; p.p = true; document.getElementById('scr').innerText = score;
-                if (score % 5 === 0) { level++; speed += 0.4; document.getElementById('lvl').innerText = level; }
+                if (score % 5 === 0) { level++; speed += 0.5; document.getElementById('lvl').innerText = level; }
                 if (level >= 20) win = true;
             }
             if (p.x + 60 < 0) pipes.splice(i, 1);
         });
 
-        // رسم الكنوز (عملات ذهبية لامعة)
+        // رسم الكنوز
         coins.forEach((c, i) => {
             c.x -= speed;
             if (!c.col) {
-                ctx.fillStyle = "#ffd700"; ctx.beginPath(); ctx.arc(c.x, c.y, c.r, 0, Math.PI*2); ctx.fill();
-                ctx.shadowBlur = 15; ctx.shadowColor = "yellow";
-                if (Math.abs(cat.x - c.x) < 45 && Math.abs(cat.y - c.y) < 45) { c.col = true; totalCoins++; document.getElementById('cns').innerText = totalCoins; }
+                ctx.fillStyle = "#FFD700"; ctx.beginPath(); ctx.arc(c.x, c.y, c.r, 0, Math.PI*2); ctx.fill();
+                if (Math.abs(bird.x - c.x) < 45 && Math.abs(bird.y - c.y) < 45) { c.col = true; totalCoins++; document.getElementById('cns').innerText = totalCoins; }
             }
-            ctx.shadowBlur = 0;
             if (c.x + 20 < 0) coins.splice(i, 1);
         });
 
         if (active) {
-            cat.v += cat.g; cat.y += cat.v;
-            if (cat.y > canvas.height || cat.y < 0) active = false;
+            bird.v += bird.g; bird.y += bird.v;
+            if (bird.y > canvas.height || bird.y < 0) active = false;
             if (pipes.length === 0 || pipes[pipes.length-1].x < canvas.width - 280) createPipe();
             requestAnimationFrame(draw);
         } else {
-            ctx.fillStyle = "rgba(255,0,0,0.2)"; ctx.fillRect(0,0,canvas.width,canvas.height);
+            ctx.fillStyle = "rgba(0,0,0,0.7)"; ctx.fillRect(0,0,canvas.width,canvas.height);
             ctx.fillStyle = "#fff"; ctx.font = "20px Arial"; ctx.textAlign="center";
-            ctx.fillText("سقط البطل في فخ الكهف! المس للمحاولة", canvas.width/2, canvas.height/2);
+            ctx.fillText("سقط البطل! المس الشاشة للنهوض مجدداً", canvas.width/2, canvas.height/2);
         }
     }
 
     function reset() {
-        cat.y = canvas.height/2; cat.v = 0; pipes = []; coins = []; score = 0; level = 1; speed = 4.5; active = true; win = false; draw();
+        bird.y = canvas.height/2; bird.v = 0; pipes = []; coins = []; redEyes = []; score = 0; level = 1; speed = 4.5; active = true; win = false; draw();
     }
 
-    const trigger = () => { if(!active || win) reset(); else cat.v = cat.j; };
-    window.addEventListener('mousedown', trigger);
-    window.addEventListener('touchstart', (e) => { e.preventDefault(); trigger(); }, {passive: false});
+    const play = () => { if(!active || win) reset(); else bird.v = bird.j; };
+    window.addEventListener('mousedown', play);
+    window.addEventListener('touchstart', (e) => { e.preventDefault(); play(); }, {passive: false});
 
     createPipe();
     draw();
