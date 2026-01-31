@@ -3,134 +3,127 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Himalayan Escape: The Sanctuary</title>
+    <title>Himalayan Escape - Verified Version</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { margin: 0; overflow: hidden; background: #050505; font-family: sans-serif; }
         #ui { position: absolute; top: 10px; width: 100%; text-align: center; color: #fff; z-index: 100; pointer-events: none; }
-        .progress-container { width: 70%; height: 12px; background: #222; margin: 10px auto; border-radius: 6px; border: 2px solid #444; overflow: hidden; }
-        #progressBar { width: 0%; height: 100%; background: linear-gradient(90deg, #ff416c, #ff4b2b, #00ff00); transition: width 0.1s; }
-        .status-text { font-size: 20px; font-weight: bold; color: #f1c40f; text-shadow: 2px 2px 5px #000; }
-        .distance-text { font-size: 14px; color: #ddd; margin-top: 5px; }
+        .progress-bar { width: 60%; height: 10px; background: #222; margin: 10px auto; border-radius: 5px; border: 1px solid #444; overflow: hidden; }
+        #fill { width: 0%; height: 100%; background: linear-gradient(90deg, #ff0000, #00ff00); }
+        .info { font-size: 18px; color: #f1c40f; text-shadow: 2px 2px 4px #000; }
     </style>
 </head>
 <body>
 
 <div id="ui">
-    <div class="status-text" id="msg">أسرع! الوحش يقترب.. اهرب نحو بيت الأمان 🐾</div>
-    <div class="progress-container"><div id="progressBar"></div></div>
-    <div class="distance-text">المسافة المتبقية: <span id="dist">1200</span> متر</div>
+    <div class="info">اهرب من الوحش نحو بيت الأمان! 🐾</div>
+    <div class="progress-bar"><div id="fill"></div></div>
+    <div style="font-size: 14px;">المسافة: <span id="dist">1500</span>m</div>
 </div>
 
-<canvas id="gameCanvas"></canvas>
+<canvas id="game"></canvas>
 
 <script>
-    const canvas = document.getElementById('gameCanvas');
+    const canvas = document.getElementById('game');
     const ctx = canvas.getContext('2d');
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 
-    // صورة القطة الطبيعية
-    const catImg = new Image();
-    catImg.src = 'https://i.imgur.com/WBy6v9S.png'; 
+    let player = { x: 150, y: canvas.height/2, w: 60, h: 50, v: 0, g: 0.5, j: -9 };
+    let monsterX = -120;
+    let obstacles = [], distance = 1500, active = true, win = false, gameStarted = false;
+    let speed = 5;
 
-    let player = { x: 180, y: canvas.height/2, w: 75, h: 65, v: 0, g: 0.5, j: -9 };
-    let monsterX = -150; // موقع الوحش المطارد خلف القطة
-    let obstacles = [], score = 0, distance = 1200, active = true, win = false;
-    let speed = 5.5;
+    // دالة رسم القطة هيمالايا برمجياً لضمان الظهور
+    function drawCat(x, y) {
+        ctx.save();
+        // الجسم
+        ctx.fillStyle = "#F5F5DC";
+        ctx.beginPath(); ctx.roundRect(x, y, 60, 40, 10); ctx.fill();
+        // الأذنين والقناع (بني)
+        ctx.fillStyle = "#4B3621";
+        ctx.beginPath(); ctx.moveTo(x+40, y+5); ctx.lineTo(x+55, y-10); ctx.lineTo(x+60, y+10); ctx.fill();
+        ctx.beginPath(); ctx.arc(x+50, y+15, 12, 0, Math.PI*2); ctx.fill();
+        // العيون الزرقاء
+        ctx.fillStyle = "#00BFFF";
+        ctx.beginPath(); ctx.arc(x+45, y+12, 3, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(x+55, y+12, 3, 0, Math.PI*2); ctx.fill();
+        // الذيل
+        ctx.strokeStyle = "#4B3621"; ctx.lineWidth = 5;
+        ctx.beginPath(); ctx.moveTo(x, y+30); ctx.quadraticCurveTo(x-20, y+10, x-10, y+40); ctx.stroke();
+        ctx.restore();
+    }
 
-    function createPipe() {
-        let gap = 190;
-        let top = Math.random() * (canvas.height - gap - 120) + 60;
-        obstacles.push({ x: canvas.width, t: top, g: gap, p: false });
+    function createObstacle() {
+        let gap = 180 + Math.random() * 40; // فجوات متغيرة
+        let top = Math.random() * (canvas.height - gap - 150) + 70;
+        obstacles.push({ x: canvas.width, t: top, g: gap });
     }
 
     function draw() {
-        // تأثير الخلفية: تصبح أفتح تدريجياً كلما اقتربنا من البيت
-        let bgIntensity = Math.min(40, (1 - distance / 1200) * 60);
-        ctx.fillStyle = `rgb(${bgIntensity}, ${bgIntensity + 10}, ${bgIntensity + 20})`;
+        ctx.fillStyle = "#0a0a0a";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // رسم الوحش المطارد (سحابة سوداء بعيون حمراء متوهجة)
-        monsterX = Math.min(player.x - 30, monsterX + 0.45); // الوحش يزحف ببطء نحو القطة
-        
-        ctx.save();
-        ctx.shadowBlur = 30;
-        ctx.shadowColor = "red";
-        ctx.fillStyle = "rgba(0,0,0,0.95)";
-        ctx.beginPath();
-        ctx.arc(monsterX - 60, player.y + 30, 90, 0, Math.PI*2);
-        ctx.fill();
-        // عيون الوحش
-        ctx.fillStyle = "#ff0000";
-        ctx.beginPath(); ctx.arc(monsterX - 30, player.y + 15, 6, 0, Math.PI*2); ctx.fill();
-        ctx.beginPath(); ctx.arc(monsterX - 55, player.y + 15, 6, 0, Math.PI*2); ctx.fill();
-        ctx.restore();
+        // رسم الوحش
+        monsterX = Math.min(player.x - 40, monsterX + 0.4);
+        ctx.fillStyle = "rgba(255, 0, 0, 0.2)";
+        ctx.beginPath(); ctx.arc(monsterX - 50, player.y + 20, 80, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = "red";
+        ctx.beginPath(); ctx.arc(monsterX-10, player.y+10, 5, 0, Math.PI*2); ctx.fill();
 
         if (win) {
-            ctx.fillStyle = "rgba(255,255,255,0.95)"; ctx.fillRect(0,0,canvas.width,canvas.height);
-            ctx.fillStyle = "#2ecc71"; ctx.font = "bold 40px Arial"; ctx.textAlign="center";
-            ctx.fillText("🏡 وصلت لبيت الأمان بسلام!", canvas.width/2, canvas.height/2 - 20);
-            ctx.fillStyle = "#f1c40f"; ctx.font = "bold 50px Arial";
-            ctx.fillText("🏆 مبروك نلت الكأس", canvas.width/2, canvas.height/2 + 60);
+            ctx.fillStyle = "rgba(255,255,255,0.9)"; ctx.fillRect(0,0,canvas.width,canvas.height);
+            ctx.fillStyle = "#2ecc71"; ctx.font = "bold 30px Arial"; ctx.textAlign="center";
+            ctx.fillText("🏡 وصلت لبيت الأمان! مبروك الكأس 🏆", canvas.width/2, canvas.height/2);
             return;
         }
 
         // رسم القطة
-        ctx.drawImage(catImg, player.x, player.y, player.w, player.h);
+        drawCat(player.x, player.y);
 
-        // رسم صخور الكهف (العقبات)
+        // رسم العواميد (الصخور)
         obstacles.forEach((p, i) => {
             p.x -= speed;
-            ctx.fillStyle = "#1a1a1a";
-            ctx.fillRect(p.x, 0, 70, p.t);
-            ctx.fillRect(p.x, p.t + p.g, 70, canvas.height);
+            ctx.fillStyle = "#333";
+            ctx.fillRect(p.x, 0, 60, p.t);
+            ctx.fillRect(p.x, p.t + p.g, 60, canvas.height);
 
-            // تصادم مع الصخور
-            if (player.x < p.x + 70 && player.x + player.w > p.x && (player.y < p.t || player.y + player.h > p.t + p.g)) {
-                active = false;
-            }
-            if (p.x + 70 < 0) obstacles.splice(i, 1);
+            if (player.x < p.x + 60 && player.x + player.w > p.x && (player.y < p.t || player.y + player.h > p.t + p.g)) active = false;
+            if (p.x + 60 < 0) obstacles.splice(i, 1);
         });
 
         if (active) {
-            player.v += player.g; player.y += player.v;
-            distance -= 1.2;
-            
-            // تحديث الـ UI
-            document.getElementById('dist').innerText = Math.max(0, Math.floor(distance));
-            document.getElementById('progressBar').style.width = (100 - (distance/12)) + "%";
-
-            // فحص الفوز
-            if (distance <= 0) { win = true; }
-            
-            // فحص الخسارة (السقوط أو إمساك الوحش)
+            if(gameStarted) {
+                player.v += player.g; player.y += player.v;
+                distance -= 1;
+                document.getElementById('dist').innerText = Math.max(0, distance);
+                document.getElementById('fill').style.width = (1 - distance/1500)*100 + "%";
+                if (distance <= 0) win = true;
+                // توليد العواميد بمسافة كافية
+                if (obstacles.length === 0 || obstacles[obstacles.length-1].x < canvas.width - 350) createObstacle();
+            } else {
+                ctx.fillStyle = "white"; ctx.textAlign="center";
+                ctx.fillText("المس الشاشة للانطلاق من مسافة آمنة", canvas.width/2, canvas.height/2 + 100);
+            }
             if (player.y > canvas.height || player.y < 0 || player.x <= monsterX) active = false;
-            
-            if (obstacles.length === 0 || obstacles[obstacles.length-1].x < canvas.width - 320) createPipe();
             requestAnimationFrame(draw);
         } else {
-            // مشهد الخسارة
             ctx.fillStyle = "rgba(0,0,0,0.8)"; ctx.fillRect(0,0,canvas.width,canvas.height);
-            ctx.fillStyle = "#e74c3c"; ctx.font = "bold 35px Arial"; ctx.textAlign="center";
-            ctx.fillText("أمسك بك الوحش المرعب! 👹", canvas.width/2, canvas.height/2);
-            ctx.fillStyle = "#fff"; ctx.font = "20px Arial";
-            ctx.fillText("المس الشاشة للهرب مجدداً", canvas.width/2, canvas.height/2 + 60);
+            ctx.fillStyle = "red"; ctx.font = "25px Arial"; ctx.textAlign="center";
+            ctx.fillText("أمسك بك الوحش! المس للإعادة", canvas.width/2, canvas.height/2);
         }
     }
 
     function reset() {
-        player.y = canvas.height/2; player.v = 0; monsterX = -150; obstacles = []; distance = 1200; active = true; win = false; draw();
+        player.y = canvas.height/2; player.v = 0; monsterX = -120; obstacles = []; distance = 1500; active = true; win = false; gameStarted = false;
     }
 
-    const handleAction = (e) => { 
-        if (e.type === 'touchstart') e.preventDefault();
-        if(!active || win) reset(); else player.v = player.j; 
+    const action = () => { 
+        if(!active || win) reset(); 
+        else { gameStarted = true; player.v = player.j; }
     };
+    window.addEventListener('mousedown', action);
+    window.addEventListener('touchstart', (e) => { e.preventDefault(); action(); }, {passive: false});
 
-    window.addEventListener('mousedown', handleAction);
-    window.addEventListener('touchstart', handleAction, {passive: false});
-
-    createPipe();
     draw();
 </script>
 </body>
