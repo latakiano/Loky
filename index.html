@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Himalayan Cat Adventure</title>
+    <title>Himalayan Cat Adventure - Pro</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #050505; font-family: sans-serif; touch-action: none; }
+        body { margin: 0; overflow: hidden; background: #050505; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; touch-action: none; }
         #ui { position: absolute; top: 10px; width: 100%; text-align: center; color: #fff; z-index: 100; pointer-events: none; }
         .progress-bar { width: 70%; height: 12px; background: #222; margin: 10px auto; border-radius: 6px; border: 2px solid #444; overflow: hidden; }
         #fill { width: 0%; height: 100%; background: linear-gradient(90deg, #ff416c, #00ff00); transition: width 0.2s; }
@@ -15,9 +15,9 @@
 <body>
 
 <div id="ui">
-    <div class="info">اهرب نحو بيت الأمان! 🐾</div>
+    <div class="info">أسرع! الذئب يقترب 🐺🐾</div>
     <div class="progress-bar"><div id="fill"></div></div>
-    <div style="font-size: 14px;">المسافة المتبقية: <span id="dist">1500</span>m</div>
+    <div style="font-size: 14px;">المسافة: <span id="dist">1500</span>m | السرعة: <span id="speed">1x</span></div>
 </div>
 
 <canvas id="game"></canvas>
@@ -33,39 +33,44 @@
     window.addEventListener('resize', resize);
     resize();
 
-    // روابط الصور الجديدة (القطة والذئب)
     const catImg = new Image();
     catImg.src = 'https://img.icons8.com/color/96/cat--v1.png'; 
 
     const wolfImg = new Image();
-    wolfImg.src = 'https://img.icons8.com/color/150/wolf.png'; // صورة ذئب بدلاً من الدائرة
+    wolfImg.src = 'https://img.icons8.com/color/150/wolf.png';
 
-    let player = { x: 100, y: canvas.height/2, w: 50, h: 50, v: 0, g: 0.45, j: -8 };
-    let monsterX = -200;
+    let player = { x: 120, y: canvas.height/2, w: 50, h: 50, v: 0, g: 0.45, j: -8 };
+    let monster = { x: -200, y: canvas.height/2, w: 110, h: 110, targetY: canvas.height/2 };
     let obstacles = [], distance = 1500, active = true, win = false, gameStarted = false;
-    let speed = 5;
+    let baseSpeed = 5;
+    let currentSpeed = 5;
     let obstacleCount = 0;
 
-    const columnColors = ["#2ecc71", "#3498db", "#e74c3c", "#f1c40f", "#9b59b6"];
-
     function createObstacle() {
-        if (1500 - distance < 300) return; 
-        let gap = 240; 
+        if (1500 - distance < 200) return; 
+        let gap = 240 - (Math.min(50, (1500 - distance) / 30)); // الفتحة تضيق تدريجياً
         let top = Math.random() * (canvas.height - gap - 150) + 70;
-        let color = columnColors[obstacleCount % columnColors.length];
-        obstacles.push({ x: canvas.width, t: top, g: gap, color: color });
-        obstacleCount++;
+        obstacles.push({ x: canvas.width, t: top, g: gap, color: "#2ecc71" });
     }
 
     function update() {
         if (!active || win || !gameStarted) return;
 
+        // تحديث السرعة بناءً على المسافة المقطوعة
+        currentSpeed = baseSpeed + (1500 - distance) / 300;
+        document.getElementById('speed').innerText = (currentSpeed/5).toFixed(1) + "x";
+
         player.v += player.g;
         player.y += player.v;
-        distance -= 1.5;
+        distance -= (currentSpeed / 4);
         
-        // سرعة اقتراب الذئب
-        monsterX = Math.min(player.x - 40, monsterX + 0.5);
+        // ذكاء الذئب: يتبع القطة بسلاسة وليس بالقفز
+        monster.targetY = player.y - 30;
+        monster.y += (monster.targetY - monster.y) * 0.05; // حركة ناعمة
+        
+        // موقع الذئب: يتقدم إذا أخطأت ويتراجع إذا كنت سريعاً
+        let idealMonsterX = player.x - 120;
+        monster.x += (idealMonsterX - monster.x) * 0.01;
 
         document.getElementById('dist').innerText = Math.max(0, Math.floor(distance));
         document.getElementById('fill').style.width = (1 - distance/1500)*100 + "%";
@@ -78,68 +83,80 @@
 
         for (let i = obstacles.length - 1; i >= 0; i--) {
             let p = obstacles[i];
-            p.x -= speed;
+            p.x -= currentSpeed;
             
-            // تصادم دقيق
-            if (player.x + 10 < p.x + 60 && player.x + player.w - 10 > p.x && 
-               (player.y + 10 < p.t || player.y + player.h - 10 > p.t + p.g)) {
+            // تصادم دقيق جداً
+            if (player.x + 15 < p.x + 60 && player.x + player.w - 15 > p.x && 
+               (player.y + 15 < p.t || player.y + player.h - 15 > p.t + p.g)) {
                 active = false;
             }
             if (p.x + 60 < 0) obstacles.splice(i, 1);
         }
 
-        if (player.y > canvas.height || player.y < 0 || player.x <= monsterX + 40) active = false;
+        // السقوط أو لمس الذئب
+        if (player.y > canvas.height || player.y < -50 || (monster.x + 70 > player.x)) active = false;
     }
 
     function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // خلفية بسيطة متحركة
         ctx.fillStyle = "#0a0a0a";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // رسم الذئب (الوحش)
+        // رسم الذئب
         if (gameStarted) {
-            ctx.drawImage(wolfImg, monsterX - 80, player.y - 40, 110, 110);
+            ctx.drawImage(wolfImg, monster.x, monster.y, monster.w, monster.h);
         }
 
         // رسم الأعمدة
         obstacles.forEach(p => {
-            ctx.fillStyle = p.color;
+            ctx.fillStyle = "#2ecc71";
             ctx.fillRect(p.x, 0, 60, p.t);
             ctx.fillRect(p.x, p.t + p.g, 60, canvas.height);
-            // تزيين الأعمدة
-            ctx.strokeStyle = "rgba(255,255,255,0.3)";
-            ctx.strokeRect(p.x, 0, 60, p.t);
-            ctx.strokeRect(p.x, p.t + p.g, 60, canvas.height);
         });
 
-        // رسم القطة
-        ctx.drawImage(catImg, player.x, player.y, player.w, player.h);
+        // رسم القطة مع تأثير ميلان بسيط عند الحركة
+        ctx.save();
+        ctx.translate(player.x + player.w/2, player.y + player.h/2);
+        ctx.rotate(player.v * 0.04);
+        ctx.drawImage(catImg, -player.w/2, -player.h/2, player.w, player.h);
+        ctx.restore();
 
         if (win) {
-            ctx.fillStyle = "rgba(0,0,0,0.8)"; ctx.fillRect(0,0,canvas.width,canvas.height);
-            ctx.fillStyle = "#2ecc71"; ctx.font = "bold 30px Arial"; ctx.textAlign="center";
-            ctx.fillText("🏡 وصلت لبيت الأمان! مبروك 🏆", canvas.width/2, canvas.height/2);
+            showOverlay("🏡 وصلنا بسلام! 🏆", "#2ecc71");
         } else if (!active) {
-            ctx.fillStyle = "rgba(0,0,0,0.85)"; ctx.fillRect(0,0,canvas.width,canvas.height);
-            ctx.fillStyle = "#ff4444"; ctx.font = "bold 25px Arial"; ctx.textAlign="center";
-            ctx.fillText("أمسك بك الذئب! المس للإعادة 🐺", canvas.width/2, canvas.height/2);
+            showOverlay("أكلك الذئب! 🐺 تعازينا", "#ff4444");
         } else if (!gameStarted) {
             ctx.fillStyle = "white"; ctx.textAlign="center"; ctx.font = "20px Arial";
-            ctx.fillText("المس الشاشة للهرب من الذئب 🐾", canvas.width/2, canvas.height/2);
+            ctx.fillText("المس لتبدأ الهروب الكبير 🐾", canvas.width/2, canvas.height/2);
         }
 
         update();
         requestAnimationFrame(draw);
     }
 
+    function showOverlay(msg, color) {
+        ctx.fillStyle = "rgba(0,0,0,0.8)"; ctx.fillRect(0,0,canvas.width,canvas.height);
+        ctx.fillStyle = color; ctx.font = "bold 28px Arial"; ctx.textAlign="center";
+        ctx.fillText(msg, canvas.width/2, canvas.height/2);
+        ctx.fillStyle = "white"; ctx.font = "16px Arial";
+        ctx.fillText("المس للإعادة", canvas.width/2, canvas.height/2 + 50);
+    }
+
     function reset() {
-        player.y = canvas.height/2; player.v = 0; monsterX = -200; 
+        player.y = canvas.height/2; player.v = 0; monster.x = -200; 
         obstacles = []; distance = 1500; active = true; win = false; 
-        gameStarted = false; obstacleCount = 0;
+        gameStarted = false; currentSpeed = baseSpeed;
     }
 
     const action = (e) => {
         if (e.type === 'touchstart') e.preventDefault();
-        if (!active || win) reset(); else { gameStarted = true; player.v = player.j; }
+        if (!active || win) reset(); 
+        else { 
+            gameStarted = true; 
+            player.v = player.j; 
+        }
     };
     
     window.addEventListener('mousedown', action);
