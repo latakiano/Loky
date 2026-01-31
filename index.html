@@ -33,21 +33,24 @@
     window.addEventListener('resize', resize);
     resize();
 
-    // تحميل صورة القطة
+    // روابط الصور الجديدة (القطة والذئب)
     const catImg = new Image();
-    catImg.src = 'https://i.imgur.com/WBy6v9S.png'; 
+    catImg.src = 'https://img.icons8.com/color/96/cat--v1.png'; 
 
-    let player = { x: 100, y: canvas.height/2, w: 45, h: 40, v: 0, g: 0.45, j: -8 };
+    const wolfImg = new Image();
+    wolfImg.src = 'https://img.icons8.com/color/150/wolf.png'; // صورة ذئب بدلاً من الدائرة
+
+    let player = { x: 100, y: canvas.height/2, w: 50, h: 50, v: 0, g: 0.45, j: -8 };
     let monsterX = -200;
     let obstacles = [], distance = 1500, active = true, win = false, gameStarted = false;
     let speed = 5;
     let obstacleCount = 0;
 
-    const columnColors = ["#FFFF00", "#0000FF", "#FF0000", "#008000", "#000080", "#8B4513", "#50C878", "#4B0082", "#000000"];
+    const columnColors = ["#2ecc71", "#3498db", "#e74c3c", "#f1c40f", "#9b59b6"];
 
     function createObstacle() {
         if (1500 - distance < 300) return; 
-        let gap = 220; 
+        let gap = 240; 
         let top = Math.random() * (canvas.height - gap - 150) + 70;
         let color = columnColors[obstacleCount % columnColors.length];
         obstacles.push({ x: canvas.width, t: top, g: gap, color: color });
@@ -60,7 +63,9 @@
         player.v += player.g;
         player.y += player.v;
         distance -= 1.5;
-        monsterX = Math.min(player.x - 40, monsterX + 0.4);
+        
+        // سرعة اقتراب الذئب
+        monsterX = Math.min(player.x - 40, monsterX + 0.5);
 
         document.getElementById('dist').innerText = Math.max(0, Math.floor(distance));
         document.getElementById('fill').style.width = (1 - distance/1500)*100 + "%";
@@ -75,48 +80,51 @@
             let p = obstacles[i];
             p.x -= speed;
             
-            // تصادم
-            if (player.x < p.x + 60 && player.x + player.w > p.x && 
-               (player.y < p.t || player.y + player.h > p.t + p.g)) {
+            // تصادم دقيق
+            if (player.x + 10 < p.x + 60 && player.x + player.w - 10 > p.x && 
+               (player.y + 10 < p.t || player.y + player.h - 10 > p.t + p.g)) {
                 active = false;
             }
             if (p.x + 60 < 0) obstacles.splice(i, 1);
         }
 
-        if (player.y > canvas.height || player.y < 0 || player.x <= monsterX) active = false;
+        if (player.y > canvas.height || player.y < 0 || player.x <= monsterX + 40) active = false;
     }
 
     function draw() {
         ctx.fillStyle = "#0a0a0a";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // رسم الوحش
-        ctx.fillStyle = "rgba(255, 0, 0, 0.2)";
-        ctx.beginPath(); 
-        ctx.arc(monsterX - 60, player.y + 20, 100, 0, Math.PI*2); 
-        ctx.fill();
+        // رسم الذئب (الوحش)
+        if (gameStarted) {
+            ctx.drawImage(wolfImg, monsterX - 80, player.y - 40, 110, 110);
+        }
 
         // رسم الأعمدة
         obstacles.forEach(p => {
             ctx.fillStyle = p.color;
             ctx.fillRect(p.x, 0, 60, p.t);
             ctx.fillRect(p.x, p.t + p.g, 60, canvas.height);
+            // تزيين الأعمدة
+            ctx.strokeStyle = "rgba(255,255,255,0.3)";
+            ctx.strokeRect(p.x, 0, 60, p.t);
+            ctx.strokeRect(p.x, p.t + p.g, 60, canvas.height);
         });
 
         // رسم القطة
         ctx.drawImage(catImg, player.x, player.y, player.w, player.h);
 
         if (win) {
-            ctx.fillStyle = "rgba(255,255,255,0.95)"; ctx.fillRect(0,0,canvas.width,canvas.height);
+            ctx.fillStyle = "rgba(0,0,0,0.8)"; ctx.fillRect(0,0,canvas.width,canvas.height);
             ctx.fillStyle = "#2ecc71"; ctx.font = "bold 30px Arial"; ctx.textAlign="center";
-            ctx.fillText("🏡 وصلت لبيت الأمان! 🏆", canvas.width/2, canvas.height/2);
+            ctx.fillText("🏡 وصلت لبيت الأمان! مبروك 🏆", canvas.width/2, canvas.height/2);
         } else if (!active) {
             ctx.fillStyle = "rgba(0,0,0,0.85)"; ctx.fillRect(0,0,canvas.width,canvas.height);
             ctx.fillStyle = "#ff4444"; ctx.font = "bold 25px Arial"; ctx.textAlign="center";
-            ctx.fillText("أمسك بك الوحش! المس للإعادة", canvas.width/2, canvas.height/2);
+            ctx.fillText("أمسك بك الذئب! المس للإعادة 🐺", canvas.width/2, canvas.height/2);
         } else if (!gameStarted) {
             ctx.fillStyle = "white"; ctx.textAlign="center"; ctx.font = "20px Arial";
-            ctx.fillText("المس الشاشة للانطلاق 🐾", canvas.width/2, canvas.height/2);
+            ctx.fillText("المس الشاشة للهرب من الذئب 🐾", canvas.width/2, canvas.height/2);
         }
 
         update();
