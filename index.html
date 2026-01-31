@@ -3,21 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Himalayan Escape - Verified Version</title>
+    <title>Himalayan Escape - Fixed Version</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #050505; font-family: sans-serif; }
+        body { margin: 0; overflow: hidden; background: #050505; font-family: sans-serif; touch-action: none; }
         #ui { position: absolute; top: 10px; width: 100%; text-align: center; color: #fff; z-index: 100; pointer-events: none; }
-        .progress-bar { width: 60%; height: 10px; background: #222; margin: 10px auto; border-radius: 5px; border: 1px solid #444; overflow: hidden; }
-        #fill { width: 0%; height: 100%; background: linear-gradient(90deg, #ff0000, #00ff00); }
-        .info { font-size: 18px; color: #f1c40f; text-shadow: 2px 2px 4px #000; }
+        .progress-bar { width: 60%; height: 10px; background: #222; margin: 10px auto; border-radius: 5px; border: 1px solid #444; }
+        #fill { width: 0%; height: 100%; background: linear-gradient(90deg, #ff0000, #00ff00); transition: width 0.2s; }
+        .info { font-size: 18px; color: #f1c40f; text-shadow: 2px 2px 4px #000; font-weight: bold; }
     </style>
 </head>
 <body>
 
 <div id="ui">
-    <div class="info">اهرب من الوحش نحو بيت الأمان! 🐾</div>
+    <div class="info" id="statusMsg">اهرب نحو بيت الأمان! 🐾</div>
     <div class="progress-bar"><div id="fill"></div></div>
-    <div style="font-size: 14px;">المسافة: <span id="dist">1500</span>m</div>
+    <div style="font-size: 14px;">المسافة المتبقية: <span id="dist">1500</span>m</div>
 </div>
 
 <canvas id="game"></canvas>
@@ -28,103 +28,127 @@
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 
-    let player = { x: 150, y: canvas.height/2, w: 60, h: 50, v: 0, g: 0.5, j: -9 };
-    let monsterX = -120;
+    let player = { x: 150, y: canvas.height/2, w: 65, h: 55, v: 0, g: 0.5, j: -9 };
+    let monsterX = -150;
     let obstacles = [], distance = 1500, active = true, win = false, gameStarted = false;
-    let speed = 5;
+    let speed = 5.5;
+    let obstacleCount = 0;
 
-    // دالة رسم القطة هيمالايا برمجياً لضمان الظهور
+    // مصفوفة الألوان المطلوبة بالترتيب
+    const columnColors = ["#FFFF00", "#0000FF", "#FF0000", "#008000", "#000080", "#8B4513", "#50C878", "#800080", "#FF4500"];
+
     function drawCat(x, y) {
         ctx.save();
-        // الجسم
-        ctx.fillStyle = "#F5F5DC";
+        ctx.fillStyle = "#F5F5DC"; // جسم كريمي
         ctx.beginPath(); ctx.roundRect(x, y, 60, 40, 10); ctx.fill();
-        // الأذنين والقناع (بني)
-        ctx.fillStyle = "#4B3621";
+        ctx.fillStyle = "#4B3621"; // أذنين وقناع بني
         ctx.beginPath(); ctx.moveTo(x+40, y+5); ctx.lineTo(x+55, y-10); ctx.lineTo(x+60, y+10); ctx.fill();
         ctx.beginPath(); ctx.arc(x+50, y+15, 12, 0, Math.PI*2); ctx.fill();
-        // العيون الزرقاء
-        ctx.fillStyle = "#00BFFF";
+        ctx.fillStyle = "#00BFFF"; // عيون زرقاء
         ctx.beginPath(); ctx.arc(x+45, y+12, 3, 0, Math.PI*2); ctx.fill();
         ctx.beginPath(); ctx.arc(x+55, y+12, 3, 0, Math.PI*2); ctx.fill();
-        // الذيل
-        ctx.strokeStyle = "#4B3621"; ctx.lineWidth = 5;
-        ctx.beginPath(); ctx.moveTo(x, y+30); ctx.quadraticCurveTo(x-20, y+10, x-10, y+40); ctx.stroke();
         ctx.restore();
     }
 
     function createObstacle() {
-        let gap = 180 + Math.random() * 40; // فجوات متغيرة
+        let gap = 200;
         let top = Math.random() * (canvas.height - gap - 150) + 70;
-        obstacles.push({ x: canvas.width, t: top, g: gap });
+        let color = columnColors[obstacleCount % columnColors.length];
+        obstacles.push({ x: canvas.width, t: top, g: gap, color: color });
+        obstacleCount++;
+    }
+
+    function update() {
+        if (!active || win) return;
+
+        if (gameStarted) {
+            player.v += player.g;
+            player.y += player.v;
+            distance -= 1.5;
+            monsterX = Math.min(player.x - 40, monsterX + 0.45);
+
+            document.getElementById('dist').innerText = Math.max(0, Math.floor(distance));
+            document.getElementById('fill').style.width = (1 - distance/1500)*100 + "%";
+
+            if (distance <= 0) win = true;
+
+            // توليد العواميد بمسافات جيدة
+            if (obstacles.length === 0 || obstacles[obstacles.length-1].x < canvas.width - 350) {
+                createObstacle();
+            }
+
+            obstacles.forEach((p, i) => {
+                p.x -= speed;
+                // تصادم
+                if (player.x < p.x + 60 && player.x + player.w > p.x && (player.y < p.t || player.y + player.h > p.t + p.g)) active = false;
+                if (p.x + 60 < 0) obstacles.splice(i, 1);
+            });
+
+            if (player.y > canvas.height || player.y < 0 || player.x <= monsterX) active = false;
+        }
     }
 
     function draw() {
         ctx.fillStyle = "#0a0a0a";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // رسم الوحش
-        monsterX = Math.min(player.x - 40, monsterX + 0.4);
-        ctx.fillStyle = "rgba(255, 0, 0, 0.2)";
-        ctx.beginPath(); ctx.arc(monsterX - 50, player.y + 20, 80, 0, Math.PI*2); ctx.fill();
+        // رسم الوحش المطارد
+        ctx.fillStyle = "rgba(255, 0, 0, 0.3)";
+        ctx.beginPath(); ctx.arc(monsterX - 60, player.y + 20, 90, 0, Math.PI*2); ctx.fill();
         ctx.fillStyle = "red";
-        ctx.beginPath(); ctx.arc(monsterX-10, player.y+10, 5, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(monsterX - 20, player.y + 10, 6, 0, Math.PI*2); ctx.fill();
+
+        // رسم العواميد الملونة
+        obstacles.forEach(p => {
+            ctx.fillStyle = p.color;
+            ctx.fillRect(p.x, 0, 65, p.t);
+            ctx.fillRect(p.x, p.t + p.g, 65, canvas.height);
+            // إضافة تأثير بسيط للعامود
+            ctx.strokeStyle = "rgba(255,255,255,0.3)";
+            ctx.strokeRect(p.x, 0, 65, p.t);
+            ctx.strokeRect(p.x, p.t + p.g, 65, canvas.height);
+        });
+
+        drawCat(player.x, player.y);
 
         if (win) {
             ctx.fillStyle = "rgba(255,255,255,0.9)"; ctx.fillRect(0,0,canvas.width,canvas.height);
             ctx.fillStyle = "#2ecc71"; ctx.font = "bold 30px Arial"; ctx.textAlign="center";
-            ctx.fillText("🏡 وصلت لبيت الأمان! مبروك الكأس 🏆", canvas.width/2, canvas.height/2);
-            return;
-        }
-
-        // رسم القطة
-        drawCat(player.x, player.y);
-
-        // رسم العواميد (الصخور)
-        obstacles.forEach((p, i) => {
-            p.x -= speed;
-            ctx.fillStyle = "#333";
-            ctx.fillRect(p.x, 0, 60, p.t);
-            ctx.fillRect(p.x, p.t + p.g, 60, canvas.height);
-
-            if (player.x < p.x + 60 && player.x + player.w > p.x && (player.y < p.t || player.y + player.h > p.t + p.g)) active = false;
-            if (p.x + 60 < 0) obstacles.splice(i, 1);
-        });
-
-        if (active) {
-            if(gameStarted) {
-                player.v += player.g; player.y += player.v;
-                distance -= 1;
-                document.getElementById('dist').innerText = Math.max(0, distance);
-                document.getElementById('fill').style.width = (1 - distance/1500)*100 + "%";
-                if (distance <= 0) win = true;
-                // توليد العواميد بمسافة كافية
-                if (obstacles.length === 0 || obstacles[obstacles.length-1].x < canvas.width - 350) createObstacle();
-            } else {
-                ctx.fillStyle = "white"; ctx.textAlign="center";
-                ctx.fillText("المس الشاشة للانطلاق من مسافة آمنة", canvas.width/2, canvas.height/2 + 100);
-            }
-            if (player.y > canvas.height || player.y < 0 || player.x <= monsterX) active = false;
-            requestAnimationFrame(draw);
-        } else {
+            ctx.fillText("🏡 وصلت لبيت الأمان! مبروك 🏆", canvas.width/2, canvas.height/2);
+        } else if (!active) {
             ctx.fillStyle = "rgba(0,0,0,0.8)"; ctx.fillRect(0,0,canvas.width,canvas.height);
-            ctx.fillStyle = "red"; ctx.font = "25px Arial"; ctx.textAlign="center";
-            ctx.fillText("أمسك بك الوحش! المس للإعادة", canvas.width/2, canvas.height/2);
+            ctx.fillStyle = "#ff4444"; ctx.font = "bold 25px Arial"; ctx.textAlign="center";
+            ctx.fillText("أمسك بك الوحش! المس الشاشة للمحاولة", canvas.width/2, canvas.height/2);
+        } else if (!gameStarted) {
+            ctx.fillStyle = "white"; ctx.textAlign="center"; ctx.font = "20px Arial";
+            ctx.fillText("استعد.. المس الشاشة للانطلاق 🐾", canvas.width/2, canvas.height/2);
         }
+
+        update();
+        requestAnimationFrame(draw);
     }
 
     function reset() {
-        player.y = canvas.height/2; player.v = 0; monsterX = -120; obstacles = []; distance = 1500; active = true; win = false; gameStarted = false;
+        player.y = canvas.height/2; player.v = 0; monsterX = -150; 
+        obstacles = []; distance = 1500; active = true; win = false; 
+        gameStarted = false; obstacleCount = 0;
+        document.getElementById('fill').style.width = "0%";
     }
 
-    const action = () => { 
-        if(!active || win) reset(); 
-        else { gameStarted = true; player.v = player.j; }
+    const action = (e) => {
+        if (e.type === 'touchstart') e.preventDefault();
+        if (!active || win) {
+            reset();
+        } else {
+            gameStarted = true;
+            player.v = player.j;
+        }
     };
-    window.addEventListener('mousedown', action);
-    window.addEventListener('touchstart', (e) => { e.preventDefault(); action(); }, {passive: false});
 
-    draw();
+    window.addEventListener('mousedown', action);
+    window.addEventListener('touchstart', action, {passive: false});
+
+    draw(); // بدء حلقة الرسم
 </script>
 </body>
 </html>
